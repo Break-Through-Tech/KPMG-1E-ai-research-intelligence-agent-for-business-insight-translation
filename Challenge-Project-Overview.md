@@ -39,6 +39,7 @@ The project presents a viable opportunity for students to engage with the comple
 
 **Company / Org:** KPMG  
 **Challenge Advisor:** Agnieszka Jeter, ajeter@kpmg.com  
+**AI Studio Coach:** Rashidah Carr, rashidah.carr@breakthroughtech.org     
 **Program:** Break Through Tech AI Studio - Fall 2026
 
 ---
