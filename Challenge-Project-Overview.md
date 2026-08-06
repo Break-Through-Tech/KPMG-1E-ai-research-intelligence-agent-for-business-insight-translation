@@ -98,7 +98,7 @@ Use these milestones to guide your work. Your team will create a **GitHub Projec
 
 **Recommended Libraries:**
 - Retrieval-augmented generation (RAG) techniques
-- large language models (LLMs)
+- Large language models (LLMs)
 - Natural Language Processing (NLP)
 - Generative Models
 - Transfer Learning / Pre-trained Models
