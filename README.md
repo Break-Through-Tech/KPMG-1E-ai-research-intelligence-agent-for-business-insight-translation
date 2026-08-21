@@ -9,7 +9,7 @@
 | Name             | GitHub Handle | Contribution                                                             |
 |------------------|---------------|--------------------------------------------------------------------------|
 | Jenna Hunte      | @jehunte      | Break Through Tech Coach                                                 |
-|                  | @             |                                                                          |
+| AJ Jeter         | @ajeter-challengeadvisor | Challenge Advisor - KPMG                                      |
 |                  | @             |                                                                          |
 |                  | @             |                                                                          |
 |                  | @             |                                                                          |
