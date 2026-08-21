@@ -38,7 +38,7 @@ The project presents a viable opportunity for students to engage with the comple
 # AI Research Intelligence Agent for Business Insight Translation
 
 **Company / Org:** KPMG  
-**Challenge Advisor:** Agnieszka Jeter, ajeter@kpmg.com  
+**Challenge Advisor:** AJ (Agnieszka) Jeter, ajeter@kpmg.com  
 **AI Studio Coach:** Rashidah Carr, rashidah.carr@breakthroughtech.org     
 **Program:** Break Through Tech AI Studio - Fall 2026
 
