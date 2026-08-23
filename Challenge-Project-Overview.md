@@ -96,35 +96,6 @@ arXiv (pronounced "archive") is a free online platform and open-access archive. 
 1. Use the provided link to the arXiv website with the repository of AI research papers and determine a way to build an agent that navigates to the site, evaluates all the links, downloads the files to analyze the content, and then generate the insights, etc.
 2. Download our sample subset of the research papers to ground your RAG solution and then build an agent that analyzes the content and generates cited insights.
 
-**Recommended Libraries:**
-- [e.g., pandas, scikit-learn, TensorFlow, Hugging Face]
-
-**Evaluation Metrics:**
-- [e.g., Accuracy, Precision/Recall, RMSE, BLEU score]
-
----
-
-## 📚 Resources to Get Started
-
-The following resources will help your team understand the problem space and potential technical approaches for this project:
-
-**Background Reading:**
-- [e.g., Link to an article or blog post about the problem domain]
-- [e.g., Link to an industry report or case study]
-
-**Technical Tutorials:**
-- [e.g., Link to a free tutorial on the ML technique(s) involved]
-- [e.g., Link to documentation for a key library or tool]
-
-**Code Examples:**
-- [e.g., Link to a relevant GitHub repo]
-- [e.g., Link to a sample implementation or starter code]
-
-**Other:**
-- [Links to any additional resources — e.g., papers, videos, podcasts, etc.]
-
-*Feel free to explore beyond these, and share anything interesting you find with me!*
-
 ---
 
 ## 🤝 How We'll Work Together
@@ -138,10 +109,6 @@ The following resources will help your team understand the problem space and pot
 * Optional: Request a team check-in on Zoom if things go off the rails. 
 
 > 💡 **Challenge Advisor: Please update the above based on your availability and preference. If you are not able to answer questions or meet with fellows outside of the biweekly Lab Section check-ins, simply write in "N/A (only available during the official check-in times)"**
-
-**Recommended free coding / collaboration tools**
-* […]
-* […]
 
 ---
 
