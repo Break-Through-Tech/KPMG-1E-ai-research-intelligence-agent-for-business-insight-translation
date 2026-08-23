@@ -3,7 +3,7 @@
 
 **Company / Org:** KPMG  
 **Challenge Advisor:** AJ (Agnieszka) Jeter, ajeter@kpmg.com  
-**AI Studio Coach:** Rashidah Carr, rashidah.carr@breakthroughtech.org     
+**AI Studio Coach:** Jenna Hunte, jenna.hunte@breakthroughtech.org     
 **Program:** Break Through Tech AI Studio - Fall 2026
 
 ---
