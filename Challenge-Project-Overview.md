@@ -108,8 +108,6 @@ arXiv (pronounced "archive") is a free online platform and open-access archive. 
 * Note: I will aim to respond within 24-48 hours. Please reach out to your AI Studio Coach with urgent questions.
 * Optional: Request a team check-in on Zoom if things go off the rails. 
 
-> 💡 **Challenge Advisor: Please update the above based on your availability and preference. If you are not able to answer questions or meet with fellows outside of the biweekly Lab Section check-ins, simply write in "N/A (only available during the official check-in times)"**
-
 ---
 
 ## 🚀 Getting Started
