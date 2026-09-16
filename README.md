@@ -10,7 +10,7 @@
 |------------------|---------------|--------------------------------------------------------------------------|
 | Jenna Hunte      | @jehunte      | Break Through Tech Coach                                                 |
 | AJ Jeter         | @ajeter-challengeadvisor | Challenge Advisor - KPMG                                      |
-|                  | @             |                                                                          |
+| Amanda Gantugs   | @AmandaG421   | BreakThroughTech fellow                                                  |
 |                  | @             |                                                                          |
 |                  | @             |                                                                          |
 
