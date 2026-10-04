@@ -278,3 +278,44 @@ Special thanks to:
 
 This project demonstrates how GenAI and Retrieval-Augmented Generation can help organizations transform large volumes of research into actionable business intelligence while maintaining responsible AI governance practices.
 
+
+---
+
+## 🧬 **Embedding & Vector Store Module**
+
+Embeds chunked paper text with `all-MiniLM-L6-v2` (local, no API key) and stores it in ChromaDB (cosine space).
+
+### Install
+
+```bash
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env   # optional; defaults work. Keys: EMBEDDING_MODEL, CHROMA_DB_PATH, COLLECTION_NAME
+```
+
+### Run ingestion
+
+```bash
+python ingest.py --chunks ./chunks.json            # also accepts the chunking notebook's chunks.jsonl
+python ingest.py --chunks ./chunks.json --db-path ./chroma_db --model all-MiniLM-L6-v2
+```
+
+Ingestion uses upsert, so re-running is idempotent. Deleting `chroma_db/` and re-running rebuilds it.
+
+### Chunk input format
+
+A JSON list (or JSONL, one object per line). Each chunk must have these four fields; extra fields are ignored:
+
+```json
+[{"chunk_id": "2608.20331_sec2", "paper_id": "2608.20331", "section_label": "Results", "chunk_text": "..."}]
+```
+
+### `retrieve()` contract
+
+```python
+from retrieve import retrieve
+
+retrieve(question: str, k: int = 5) -> list[dict]
+# [{"paper_id": str, "section_label": str, "text": str, "score": float}, ...]
+# Lower score = more similar (cosine distance).
+```

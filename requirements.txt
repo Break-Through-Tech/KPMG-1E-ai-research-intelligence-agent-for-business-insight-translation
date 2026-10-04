@@ -1,1 +1,5 @@
 pdfplumber
+
+chromadb
+sentence-transformers
+python-dotenv
