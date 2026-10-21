@@ -30,11 +30,21 @@ def check_embedding_model(collection) -> None:
         )
 
 
-def chunk_metadata(chunk: dict, titles: dict) -> dict:
-    # Chroma rejects None values, so every field falls back to a concrete default.
+def chunk_metadata(chunk: dict, papers: dict) -> dict:
+    # Chroma rejects None values and non-scalars, so every field is a concrete str/int.
+    paper = papers.get(chunk["paper_id"], {})
+    if isinstance(paper, str):  # older callers (the notebook) pass a plain {paper_id: title} map
+        paper = {"title": paper}
+    published = (paper.get("published") or "")[:10]
     return {
         "paper_id": chunk["paper_id"],
-        "title": titles.get(chunk["paper_id"], ""),
+        "title": paper.get("title") or "",
+        "authors": "; ".join(paper.get("authors") or []),
+        "categories": " ".join(paper.get("categories") or []),
+        "published": published,
+        # Integer YYYYMMDD so date ranges can be filtered with $gte/$lte (0 = unknown).
+        "published_ts": int(published.replace("-", "")) if published else 0,
+        "pdf_url": paper.get("pdf_url") or "",
         "section_label": chunk["section_label"],
         "section_path": chunk.get("section_path", chunk["section_label"]),
         "chunk_index": int(chunk.get("chunk_index", 0)),
@@ -43,8 +53,8 @@ def chunk_metadata(chunk: dict, titles: dict) -> dict:
     }
 
 
-def ingest_chunks(chunks: list[dict], embeddings: list[list[float]], titles: dict | None = None):
-    titles = titles or {}
+def ingest_chunks(chunks: list[dict], embeddings: list[list[float]], papers: dict | None = None):
+    papers = papers or {}
     collection = get_collection()
     if (collection.metadata or {}).get("embedding_model") != config.EMBEDDING_MODEL:
         # Vectors from different models (and dimensions) can't share one index, so rebuild.
@@ -56,6 +66,6 @@ def ingest_chunks(chunks: list[dict], embeddings: list[list[float]], titles: dic
             ids=[c["chunk_id"] for c in batch],
             embeddings=embeddings[i : i + BATCH_SIZE],
             documents=[c["chunk_text"] for c in batch],
-            metadatas=[chunk_metadata(c, titles) for c in batch],
+            metadatas=[chunk_metadata(c, papers) for c in batch],
         )
     return collection

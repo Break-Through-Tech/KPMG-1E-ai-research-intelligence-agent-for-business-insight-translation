@@ -2,9 +2,12 @@ import argparse
 import json
 import re
 import sys
+import time
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 import arxiv
+import requests
 
 import config
 
@@ -17,6 +20,16 @@ def safe_filename(paper: arxiv.Result) -> str:
     title = re.sub(r"[^\w\s'-]", "", paper.title)
     title = re.sub(r"\s+", " ", title).strip()[:80]
     return f"{paper.get_short_id()}_{title}.pdf"
+
+
+def download_pdf(url: str, path: Path) -> None:
+    """arxiv>=4 dropped Result.download_pdf, so fetch the PDF directly (and politely)."""
+    response = requests.get(url, timeout=60, headers={"User-Agent": "kpmg-arxiv-pipeline"})
+    response.raise_for_status()
+    if not response.content.startswith(b"%PDF"):
+        raise ValueError("response was not a PDF")
+    path.write_bytes(response.content)
+    time.sleep(3)  # same ~1 request per 3 seconds courtesy limit as the API client
 
 
 def known_paper_ids() -> set[str]:
@@ -45,7 +58,7 @@ def build_query(category: str, start: datetime | None, end: datetime | None, key
     return query
 
 
-def fetch(query: str, max_results: int | None, download: bool) -> list[dict]:
+def fetch(query: str, max_results: int | None, download: bool) -> tuple[list[dict], int]:
     # arXiv asks for ~1 request per 3 seconds; the client enforces this via delay_seconds.
     client = arxiv.Client(page_size=100, delay_seconds=3, num_retries=3)
     search = arxiv.Search(
@@ -57,6 +70,7 @@ def fetch(query: str, max_results: int | None, download: bool) -> list[dict]:
     DATA_DIR.mkdir(exist_ok=True)
     seen = known_paper_ids()
     new = []
+    failed = 0
     scanned = 0
     for paper in client.results(search):
         scanned += 1
@@ -66,10 +80,11 @@ def fetch(query: str, max_results: int | None, download: bool) -> list[dict]:
         if download:
             filename = safe_filename(paper)
             try:
-                paper.download_pdf(dirpath=str(DATA_DIR), filename=filename)
+                download_pdf(paper.pdf_url, DATA_DIR / filename)
             except Exception as e:
                 # Drop any partial file so the next run retries instead of treating it as fetched.
                 (DATA_DIR / filename).unlink(missing_ok=True)
+                failed += 1
                 print(f"failed {paper.get_short_id()}: {e}", file=sys.stderr)
                 continue
         seen.add(paper_id)
@@ -95,7 +110,7 @@ def fetch(query: str, max_results: int | None, download: bool) -> list[dict]:
             "in the range may have been skipped. Raise --max-results (0 = no limit) or narrow the date range.",
             file=sys.stderr,
         )
-    return new
+    return new, failed
 
 
 def main():
@@ -127,10 +142,12 @@ def main():
     query = build_query(args.category, start, end, args.keyword)
     print(f"Query: {query}")
     try:
-        new = fetch(query, args.max_results or None, download=not args.dry_run)
+        new, failed = fetch(query, args.max_results or None, download=not args.dry_run)
     except arxiv.ArxivError as e:
         sys.exit(f"Error: arXiv request failed: {e}")
     print(f"{len(new)} new paper(s).")
+    if failed:
+        sys.exit(f"Error: {failed} download(s) failed; re-run to retry them.")
 
 
 if __name__ == "__main__":

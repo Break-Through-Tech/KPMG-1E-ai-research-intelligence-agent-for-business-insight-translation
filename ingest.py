@@ -32,13 +32,13 @@ def load_chunks(path: str) -> list[dict]:
     return chunks
 
 
-def load_titles(chunks_path: str) -> dict:
-    """Map paper_id -> title from the papers.json the chunker writes beside the chunks."""
+def load_papers(chunks_path: str) -> dict:
+    """Map paper_id -> paper record from the papers.json the chunker writes beside the chunks."""
     papers_path = Path(chunks_path).with_name("papers.json")
     if not papers_path.exists():
         return {}
     with open(papers_path, encoding="utf-8") as f:
-        return {p["paper_id"]: p.get("title", "") for p in json.load(f)}
+        return {p["paper_id"]: p for p in json.load(f)}
 
 
 def main():
@@ -62,7 +62,7 @@ def main():
     from store import ingest_chunks
 
     embeddings = embed_texts([c["chunk_text"] for c in chunks], show_progress_bar=True)
-    collection = ingest_chunks(chunks, embeddings, load_titles(args.chunks))
+    collection = ingest_chunks(chunks, embeddings, load_papers(args.chunks))
     print(f"Collection '{collection.name}' now contains {collection.count()} chunks.")
 
 

@@ -39,6 +39,12 @@ BOLD_MARKERS = ("bold", "semibold", "demi", "medi", "bx", "cmbx", "sfbx", "-bd",
 
 NUMBERED_RE = re.compile(r"^(?P<num>(?:\d{1,2}|[A-H])(?:\.\d{1,2}){0,3})\.?\s+(?P<title>[A-Z][A-Za-z][^\n]*)$")
 
+ROMAN_RE = re.compile(r"^(?P<num>[IVX]{1,5})\.\s+(?P<title>[A-Z][A-Za-z][^\n]*)$")
+LETTER_SUB_RE = re.compile(r"^(?P<num>[A-H])\.\s+(?P<title>[A-Z][A-Za-z][^\n]*)$")
+MINOR_WORDS = {"a", "an", "and", "as", "at", "by", "for", "from", "in", "of", "on", "or", "the", "to", "via", "vs", "with"}
+ROMAN_VALUES = {"I": 1, "V": 5, "X": 10}
+
+
 @dataclass
 class Line:
     page: int
@@ -51,6 +57,8 @@ class Line:
     bold_frac: float
     font: str
     n_gaps: int = 0
+    smallcaps: bool = False
+    italic: bool = False
 
     @property
     def height(self) -> float:
@@ -89,6 +97,35 @@ def is_bold(fontname: str) -> bool:
     return any(mk in f for mk in BOLD_MARKERS)
 
 
+def is_italic(fontname: str) -> bool:
+    f = fontname.lower().split("+")[-1]
+    return any(mk in f for mk in ("ital", "oblique", "-it", "cmti", "cmsl"))
+
+
+def roman_to_int(num: str) -> int:
+    total = 0
+    for a, b in zip(num, num[1:] + " "):
+        v = ROMAN_VALUES[a]
+        total += -v if ROMAN_VALUES.get(b, 0) > v else v
+    return total
+
+
+def title_case_caps(text: str) -> str:
+    """Small-caps headings come out as 'INTRODUCTION'; store them as 'Introduction' like every other paper."""
+    text = re.sub(r"\s+([:,;?!])", r"\1", text)
+    text = re.sub(r"\s*-\s*", "-", text)
+    words = []
+    for i, w in enumerate(text.split()):
+        if any(c.isdigit() for c in w) or not w.isupper() or w.startswith("("):  # keep (ACRONYM)s as written
+            words.append(w)
+        elif i > 0 and w.lower() in MINOR_WORDS:
+            words.append(w.lower())
+        else:
+            words.append("-".join(re.sub(r"[A-Za-z]", lambda m: m.group().upper(), x.lower(), count=1)
+                                  for x in w.split("-")))
+    return " ".join(words)
+
+
 def clean_text(s: str) -> str:
     s = unicodedata.normalize("NFKC", s)
     s = re.sub(r"\(cid:\d+\)", "", s)
@@ -112,6 +149,27 @@ def is_excluded_name(title: str) -> bool:
 
 
 #cleaned lines with font information
+
+def _join_parts(parts: list[tuple]) -> tuple[str, bool]:
+    """Join words into a line, re-attaching LaTeX small caps ('I' + 'NTRODUCTION' -> 'INTRODUCTION').
+
+    Small caps are a full-size capital followed by a smaller all-caps tail, which pdfplumber splits
+    into two words. Font size tells those apart from real words like 'A TO B'.
+    """
+    words: list[str] = []
+    merged = False
+    prev_size = 0.0
+    for text, gap, _, size in parts:
+        letters = re.sub(r"[^A-Za-z]", "", text)
+        if (words and re.search(r"(?:^|[(\-–])[A-Z]$", words[-1]) and letters and letters.isupper()
+                and size < prev_size - 0.5 and gap < 0.5 * prev_size):
+            words[-1] += text
+            merged = True
+        else:
+            words.append(text)
+        prev_size = size
+    return " ".join(words), merged
+
 
 def _extract_page_lines(page, pageno: int) -> list[Line]:
     #drop rotated text
@@ -145,7 +203,7 @@ def _extract_page_lines(page, pageno: int) -> list[Line]:
 
     out: list[Line] = []
     for l in lines:
-        text = " ".join(p[0] for p in l["parts"])
+        text, smallcaps = _join_parts(l["parts"])
         weights = collections.Counter()
         bold_chars = 0
         total = 0
@@ -159,7 +217,8 @@ def _extract_page_lines(page, pageno: int) -> list[Line]:
         n_gaps = sum(1 for p in l["parts"][1:] if p[1] > 0.9 * sz)
         out.append(Line(page=pageno, text=text, top=l["top"], bottom=l["bottom"],
                         x0=l["x0"], x1=l["x1"], size=sz,
-                        bold_frac=bold_chars / max(total, 1), font=fn, n_gaps=n_gaps))
+                        bold_frac=bold_chars / max(total, 1), font=fn, n_gaps=n_gaps,
+                        smallcaps=smallcaps, italic=is_italic(fn)))
     return out
 
 
@@ -203,7 +262,7 @@ def extract_lines(pdf_path: Path) -> tuple[list[Line], dict]:
         if in_margin and re.fullmatch(r"[\divxlc\-–—\s]{1,6}", t.lower()):
             dropped["page_number"] += 1
             continue
-        if l.size < 0.80 * body_size:
+        if l.size < 0.80 * body_size and not l.smallcaps:
             dropped["small_font(figure/table/footnote)"] += 1
             continue
         l.text = t
@@ -215,8 +274,41 @@ def extract_lines(pdf_path: Path) -> tuple[list[Line], dict]:
 
 #heading detection
 
+def _styled_heading(line: Line, body_size: float) -> Optional[Heading]:
+    """Headings that aren't bold: LaTeX small caps (ICLR/IEEE) and IEEE italic 'A. Subsection'."""
+    t = line.text
+    if len(t) > 110 or line.size < 0.75 * body_size:
+        return None
+    if line.smallcaps:
+        t = re.sub(r"\s+([:,;?!])", r"\1", t)
+        r = ROMAN_RE.match(t)
+        m = NUMBERED_RE.match(t)
+        if r:  # IEEE top-level 'II. PROBLEM FORMULATION' -> number 2, like the arabic-numbered papers
+            number, title, depth = str(roman_to_int(r.group("num"))), r.group("title"), 1
+        elif m and not LETTER_SUB_RE.match(t):
+            number, title = m.group("num"), m.group("title")
+            depth = number.count(".") + 1
+        elif norm_heading_name(t) in UNNUMBERED_HEADINGS and len(t) < 60:
+            number, title, depth = "", t, 1
+        else:
+            return None
+        alpha = sum(c.isalpha() for c in title) / max(len(title), 1)
+        if alpha < 0.8 or sum(c.isalpha() for c in title) < 4 or re.search(r"[≤≥=∑∈∥|]", title):  # math in a display equation, not a heading
+            return None
+        return Heading(number=number, title=title_case_caps(title).rstrip(".:"),
+                       depth=depth, line_index=-1, page=line.page)
+    if line.italic and line.bold_frac < 0.5:
+        m = LETTER_SUB_RE.match(t)
+        if m and len(t) < 90 and not t.endswith((".", ",")) and abs(line.size - body_size) < 0.5:
+            return Heading(number=m.group("num"), title=m.group("title").strip(),
+                           depth=2, line_index=-1, page=line.page)
+    return None
+
+
 def detect_heading(line: Line, body_size: float) -> Optional[Heading]:
     t = line.text
+    if line.smallcaps or (line.italic and line.bold_frac < 0.5):
+        return _styled_heading(line, body_size)
     if len(t) > 110 or line.bold_frac < 0.8 or line.size < 0.97 * body_size:
         return None
     m = NUMBERED_RE.match(t)
@@ -254,16 +346,20 @@ def find_headings(lines: list[Line], body_size: float) -> list[Heading]:
         j = i + 1
         while j < len(lines):
             n, p = lines[j], lines[j - 1]
-            if (n.page == l.page and n.bold_frac >= 0.8 and abs(n.size - l.size) < 0.3
+            if (n.page == l.page and (n.bold_frac >= 0.8 or (l.smallcaps and n.smallcaps)) and abs(n.size - l.size) < 0.3
                     and 0 <= n.top - p.bottom < 0.6 * max(p.height, 1)
                     and len(n.text) < 80 and not detect_heading(n, body_size)
                     and not h.title.endswith((".", ":", "?"))):
-                h.title = (h.title + " " + n.text).strip().rstrip(".:")
+                extra = title_case_caps(n.text) if l.smallcaps else n.text
+                h.title = (h.title + " " + extra).strip().rstrip(".:")
                 h.last_line = j
                 j += 1
             else:
                 break
         skip_until = h.last_line
+        if h.depth == 2 and re.fullmatch(r"[A-H]", h.number):  # IEEE 'A.' under 'II.' -> '2.A'
+            parent = next((x.number for x in reversed(heads) if x.depth == 1 and x.number), "")
+            h.number = f"{parent}.{h.number}" if parent else h.number
         heads.append(h)
     return heads
 
@@ -769,6 +865,28 @@ def load_existing(out_dir: Path) -> tuple[list[dict], list[dict]]:
     return papers, chunks
 
 
+ARXIV_FIELDS = ("authors", "categories", "published", "pdf_url", "abstract")
+
+
+def load_arxiv_metadata(pdf_dir: Path) -> dict[str, dict]:
+    """paper_id -> record from fetch_arxiv.py's arxiv_metadata.jsonl (absent for hand-added PDFs)."""
+    path = pdf_dir / "arxiv_metadata.jsonl"
+    if not path.exists():
+        return {}
+    with open(path, encoding="utf-8") as f:
+        return {r["paper_id"]: r for r in (json.loads(line) for line in f if line.strip())}
+
+
+def apply_arxiv_metadata(record: dict, meta: Optional[dict]) -> None:
+    """Prefer arXiv's own title (clean casing, no PDF extraction noise) and carry the bibliographic fields."""
+    if not meta:
+        return
+    record["title"] = meta.get("title") or record.get("title", "")
+    for key in ARXIV_FIELDS:
+        if key in meta:
+            record[key] = meta[key]
+
+
 def main():
     parser = argparse.ArgumentParser(description="Chunk PDFs in data/ into chunks/ for ingestion.")
     parser.add_argument("--pdf-dir", default=str(config.ROOT / "data"))
@@ -781,6 +899,7 @@ def main():
     old_papers, old_chunks = load_existing(out_dir) if args.incremental else ([], [])
     done = {p["paper_id"] for p in old_papers}
 
+    arxiv_meta = load_arxiv_metadata(Path(args.pdf_dir))
     papers, chunks = [], []
     todo = [p for p in sorted(Path(args.pdf_dir).glob("*.pdf"))
             if paper_id_from_name(p.name)[0] not in done]
@@ -791,7 +910,8 @@ def main():
     seen = set()
     for pdf in todo:
         try:
-            rec, ch = chunk_paper(pdf)
+            rec, ch = chunk_paper(pdf, title_override=arxiv_meta.get(paper_id_from_name(pdf.name)[0], {}).get("title"))
+            apply_arxiv_metadata(rec, arxiv_meta.get(rec["paper_id"]))
         except Exception as e:
             pid, ver = paper_id_from_name(pdf.name)
             papers.append(dict(paper_id=pid, version=ver, source_file=pdf.name, parse_status="error",

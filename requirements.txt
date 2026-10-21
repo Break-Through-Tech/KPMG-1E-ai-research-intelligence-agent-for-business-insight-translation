@@ -6,3 +6,4 @@ python-dotenv
 numpy
 google-genai
 arxiv
+requests
