@@ -1,0 +1,16 @@
+{
+  "n_questions": 3,
+  "k": 5,
+  "paper Hit@1": 1,
+  "paper Precision@k": 0.9333333333333333,
+  "section Hit@1": 0.3333333333333333,
+  "section Hit@k": 1,
+  "section MRR": 0.5277777777777778,
+  "section Recall@k": 0.6222222222222222,
+  "section retrieval misses@k": 0,
+  "mean relevant distance@k": 0.38326666666666664,
+  "worst relevant distance@k": 0.4224,
+  "n_off_topic": 3,
+  "closest off-topic distance": 0.4846,
+  "seconds per query": 0.06799693036979686
+}

@@ -1,0 +1,220 @@
+{
+  "questions": [
+    {
+      "id": "q01",
+      "query": "We use several AI vendors; how do we decide which model should handle each customer request without overspending?",
+      "category": "cost",
+      "expected_paper_id": "2608.20316",
+      "expected_section_prefixes": ["Abstract", "1 Introduction", "2 Setting", "4 Pandora", "7 Conclusion"],
+      "ground_truth_answer": "Treat model routing as a value-of-information problem: estimate each model's expected return for a request, but only pay for more accurate (expensive) estimates when the refinement is worth its cost. The paper formalizes this as Pandora's Box and shows its Pandora's Router policy matches the routing quality of exhaustive estimation while querying expensive estimators far less often.",
+      "off_topic": false
+    },
+    {
+      "id": "q02",
+      "query": "Is it worth paying extra to check how good a model's answer will be before choosing it?",
+      "category": "cost",
+      "expected_paper_id": "2608.20316",
+      "expected_section_prefixes": ["Abstract", "1 Introduction", "2 Setting", "3 The Pandora", "4 Pandora"],
+      "ground_truth_answer": "Only sometimes. Cheap value estimators (e.g., embedding-based predictors) are fast but noisy; accurate ones (e.g., fine-tuned models with retrieval or partial reasoning traces) are expensive. Pandora's Router gives closed-form value-of-information expressions that decide, per input, whether refining the estimate is worth its cost.",
+      "off_topic": false
+    },
+    {
+      "id": "q03",
+      "query": "Could independent AI providers bid on tasks in a marketplace?",
+      "category": "method",
+      "expected_paper_id": "2608.20316",
+      "expected_section_prefixes": ["Abstract", "5 Pandora", "D Supplemental Results > D.2"],
+      "ground_truth_answer": "Yes, in principle. The paper extends centralized routing to a decentralized setting (Pandora's Bidder) where specialists independently decide whether to invest in self-assessment before accepting an offered price to claim a query. Value-of-information reasoning improves allocative efficiency when competing estimates are accurate, but with noisy estimates it can increase a strategic specialist's utility at others' expense.",
+      "off_topic": false
+    },
+    {
+      "id": "q04",
+      "query": "How can businesses reduce LLM costs?",
+      "category": "cost",
+      "expected_paper_id": "2608.20316",
+      "expected_section_prefixes": ["Abstract", "1 Introduction", "2 Setting", "4 Pandora", "7 Conclusion"],
+      "ground_truth_answer": "Route each query to the specialist model that can answer most effectively at the lowest cost, instead of sending everything to one expensive model. Pandora's Router achieves routing quality comparable to exhaustive estimation while querying the expensive estimator far less often, so spend on value estimation itself stays low.",
+      "off_topic": false
+    },
+    {
+      "id": "q05",
+      "query": "Can AI systems improve how future AI models are trained?",
+      "category": "method",
+      "expected_paper_id": "2608.20318",
+      "expected_section_prefixes": ["Abstract", "1 Introduction", "6 Conclusion"],
+      "ground_truth_answer": "This is recursive self-improvement (RSI): an AI system improving the training algorithm that produces the next system, so improvements compound for every subsequent run. The paper presents AI4AI-Bench, 10 frozen research repositories, to measure whether agents can design training algorithms; current systems score 0.166 on average (baseline shipped algorithm = 0.1, optimum = 1.0), so partial but limited ability today.",
+      "off_topic": false
+    },
+    {
+      "id": "q06",
+      "query": "How reliable are AI agents at designing new algorithms?",
+      "category": "benchmarking",
+      "expected_paper_id": "2608.20318",
+      "expected_section_prefixes": ["Abstract", "1 Introduction", "3 Experiments", "4 Analysis", "6 Conclusion"],
+      "ground_truth_answer": "Limited so far. On AI4AI-Bench (10 frozen research repositories where an agent rewrites the training algorithm in 4 hours on one B300), the mean score across 29 configurations of 6 systems is 0.166 where the shipped algorithm is 0.1 and the optimum is 1.0; the best system reaches 0.250. Of 263 submissions that changed anything, 141 never touched how the model learns.",
+      "off_topic": false
+    },
+    {
+      "id": "q07",
+      "query": "Does letting an AI agent think longer lead to better research results?",
+      "category": "benchmarking",
+      "expected_paper_id": "2608.20318",
+      "expected_section_prefixes": ["4 Analysis > 4.2", "3 Experiments"],
+      "ground_truth_answer": "Not reliably. The paper's analysis finds more reasoning effort mostly buys the wildest deviations from the task rather than better scores — most submissions that changed how the model learns outperformed others (0.226 vs 0.126 average), but extra thinking time alone did not systematically improve results.",
+      "off_topic": false
+    },
+    {
+      "id": "q08",
+      "query": "How should we benchmark an AI coding agent's ability to do real ML research?",
+      "category": "benchmarking",
+      "expected_paper_id": "2608.20318",
+      "expected_section_prefixes": ["Abstract", "1 Introduction", "2 AI4AI-Bench"],
+      "ground_truth_answer": "Use frozen research repositories where the agent must rewrite the training algorithm itself, not just tune hyperparameters or collect data. AI4AI-Bench gives the agent 4 hours on one B300 to rewrite the training algorithm, reruns its code from scratch for up to 12 hours, and scores with a fixed evaluation the agent never sees — isolating algorithm-design ability from other skills.",
+      "off_topic": false
+    },
+    {
+      "id": "q09",
+      "query": "Can AI agents learn workflows by watching employees use software?",
+      "category": "workflow",
+      "expected_paper_id": "2608.20319",
+      "expected_section_prefixes": ["Abstract", "1 Introduction", "3 Method", "7 Conclusion"],
+      "ground_truth_answer": "Yes. Task Model Induction (TMI) turns passively recorded computer-use traces (screenshots, mouse/keyboard actions) into symbolic, auditable task models: it discovers latent tasks in unconstrained traces, disentangles concurrent activity, and induces a hierarchical objective-plus-procedure model per task. Experiments show these models recover interleaved execution faithfully and yield better downstream agent skills than raw traces or workflow summaries.",
+      "off_topic": false
+    },
+    {
+      "id": "q10",
+      "query": "How can we document how employees actually do their jobs from screen recordings for process auditing?",
+      "category": "workflow",
+      "expected_paper_id": "2608.20319",
+      "expected_section_prefixes": ["Abstract", "1 Introduction", "2 Problem Formulation", "3 Method"],
+      "ground_truth_answer": "Induce task models from naturalistic computer-use traces. TMI abstracts raw events into activities, discovers the latent tasks they realize, and reconciles objective and procedure models into one auditable task model per task — turning everyday computer activity into durable, reusable records of how work is carried out.",
+      "off_topic": false
+    },
+    {
+      "id": "q11",
+      "query": "Employees juggle several tasks at once; can AI separate their interleaved activities?",
+      "category": "workflow",
+      "expected_paper_id": "2608.20319",
+      "expected_section_prefixes": ["Abstract", "1 Introduction", "3 Method > 3.2", "4 Intrinsic Evaluation"],
+      "ground_truth_answer": "Yes. Real-world computer-use work is multi-threaded with interleaved goals, and TMI explicitly disentangles concurrent activity: it discovers the latent tasks in an unconstrained trace and recovers interleaved execution faithfully in its experiments.",
+      "off_topic": false
+    },
+    {
+      "id": "q12",
+      "query": "What are the privacy risks of recording employee computer activity?",
+      "category": "privacy",
+      "expected_paper_id": "2608.20319",
+      "expected_section_prefixes": ["Ethics Statement", "Limitations"],
+      "ground_truth_answer": "The paper's ethics statement and limitations discuss the privacy considerations of passively recording screenshots and mouse/keyboard actions of everyday work — naturalistic computer-use traces capture detailed personal activity, so organizations using them must manage consent, anonymization, and appropriate use.",
+      "off_topic": false
+    },
+    {
+      "id": "q13",
+      "query": "Can chatbots replace traditional customer surveys for collecting data?",
+      "category": "method",
+      "expected_paper_id": "2608.20320",
+      "expected_section_prefixes": ["Abstract", "2 Background and Related Work > 2.2", "3 Methodology > 3.3", "4 Case Study > 4.1"],
+      "ground_truth_answer": "They show promise as a complement. A chatbot-administered, image-augmented stated-preference survey collected mode choices from 92 student commuters across five weather scenarios (454 respondent–scenario observations), producing behaviorally coherent responses — but the study positions conversational collection within a three-agent workflow alongside conventional modeling rather than as a full replacement.",
+      "off_topic": false
+    },
+    {
+      "id": "q14",
+      "query": "How does bad weather change how people commute?",
+      "category": "method",
+      "expected_paper_id": "2608.20320",
+      "expected_section_prefixes": ["Abstract", "5 Results > 5.1", "6 Discussion", "7 Conclusions"],
+      "ground_truth_answer": "Adverse weather reduces cycling-related choices and increases reliance on public transit. The study found these associations with a multinomial logit model on stated mode choices from 92 student commuters across five predefined weather scenarios.",
+      "off_topic": false
+    },
+    {
+      "id": "q15",
+      "query": "Can off-the-shelf LLMs predict customer choices as well as traditional machine learning?",
+      "category": "benchmarking",
+      "expected_paper_id": "2608.20320",
+      "expected_section_prefixes": ["Abstract", "5 Results > 5.2", "5 Results > 5.3", "6 Discussion", "7 Conclusions"],
+      "ground_truth_answer": "They are competitive but complementary. Nine locally deployed LLMs (2–35B parameters) were evaluated across four zero-shot prompt-and-context conditions, with extensions via persona, few-shot, and vision-based prompting; the comparison with multinomial logit and random forest highlighted complementary roles — MNL gives interpretable behavioral relationships, random forest a strong trained benchmark, and LLMs flexible prediction.",
+      "off_topic": false
+    },
+    {
+      "id": "q16",
+      "query": "How do locally deployed LLMs compare with traditional statistical and machine-learning models for travel-mode prediction?",
+      "category": "benchmarking",
+      "expected_paper_id": "2608.20320",
+      "expected_section_prefixes": ["Abstract", "4 Case Study > 4.3", "5 Results > 5.2", "6 Discussion", "7 Conclusions"],
+      "ground_truth_answer": "Locally deployed LLMs (nine models, 2–35B parameters, tested zero-shot with persona, few-shot, and vision-based extensions) are compared against multinomial logit and random forest. The models play complementary roles: MNL provides interpretable behavioral relationships, random forest a strong trained predictive benchmark, and LLMs flexible zero-shot prediction — so the comparison is one of trade-offs rather than strict dominance.",
+      "off_topic": false
+    },
+    {
+      "id": "q17",
+      "query": "How can AI help hospitals communicate with patients?",
+      "category": "method",
+      "expected_paper_id": "2608.20331",
+      "expected_section_prefixes": ["Abstract", "1 Introduction", "5 Conclusion"],
+      "ground_truth_answer": "Patient-oriented Medical Report Interpretation (PMRI): models explain medical reports in accurate, accessible language based on a patient's query and dialogue history. G-CARL, a reinforcement-learning framework that decomposes reward supervision through retrieval-grounded claim verification and case-specific checklist guidance, consistently improves interpretation quality on the MMedReport benchmark.",
+      "off_topic": false
+    },
+    {
+      "id": "q18",
+      "query": "How do we stop a healthcare chatbot from making up medical facts?",
+      "category": "privacy",
+      "expected_paper_id": "2608.20331",
+      "expected_section_prefixes": ["Abstract", "1 Introduction", "3 Methods > 3.2"],
+      "ground_truth_answer": "Ground the model in evidence and verify claims. G-CARL decomposes reward supervision through retrieval-grounded claim verification (checking generated explanations against source medical reports) plus case-specific checklist guidance, jointly optimizing evidence-grounded factuality and patient-appropriate communication.",
+      "off_topic": false
+    },
+    {
+      "id": "q19",
+      "query": "How can we train an AI assistant to tailor explanations to each user's needs?",
+      "category": "method",
+      "expected_paper_id": "2608.20331",
+      "expected_section_prefixes": ["Abstract", "3 Methods > 3.3", "3 Methods > 3.4"],
+      "ground_truth_answer": "Use case-specific checklists in the reward: G-CARL aligns reinforcement learning with checklist guidance so explanations adapt to each user's query and dialogue history, while retrieval-grounded claim verification keeps them factually grounded.",
+      "off_topic": false
+    },
+    {
+      "id": "q20",
+      "query": "Which parts of the reward design matter most for medical report explanations?",
+      "category": "method",
+      "expected_paper_id": "2608.20331",
+      "expected_section_prefixes": ["4 Experiments > 4.3"],
+      "ground_truth_answer": "The ablations in Section 4.3 examine the contribution of G-CARL's reward components — retrieval-grounded claim verification and checklist-aligned guidance — to the quality of patient-oriented medical report interpretations.",
+      "off_topic": false
+    },
+    {
+      "id": "q21",
+      "query": "What is the best marketing strategy for retail stores during the holidays?",
+      "category": "off_topic",
+      "expected_paper_id": null,
+      "expected_section_prefixes": [],
+      "ground_truth_answer": "",
+      "off_topic": true
+    },
+    {
+      "id": "q22",
+      "query": "How do interest rate changes affect mortgage lending?",
+      "category": "off_topic",
+      "expected_paper_id": null,
+      "expected_section_prefixes": [],
+      "ground_truth_answer": "",
+      "off_topic": true
+    },
+    {
+      "id": "q23",
+      "query": "What are best practices for onboarding new employees?",
+      "category": "off_topic",
+      "expected_paper_id": null,
+      "expected_section_prefixes": [],
+      "ground_truth_answer": "",
+      "off_topic": true
+    },
+    {
+      "id": "q24",
+      "query": "How do I set up a Kubernetes cluster?",
+      "category": "off_topic",
+      "expected_paper_id": null,
+      "expected_section_prefixes": [],
+      "ground_truth_answer": "",
+      "off_topic": true
+    }
+  ]
+}

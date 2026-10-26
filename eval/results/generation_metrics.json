@@ -1,0 +1,12 @@
+{
+  "n_questions": 3,
+  "n_answered": 3,
+  "n_skipped": 0,
+  "faithful_pct": 100,
+  "citations_valid_pct": 100,
+  "mean_answer_relevance_1_5": 5,
+  "mean_business_quality_1_5": 3,
+  "mean_citation_coverage": 0.952,
+  "answers_with_invalid_markers": 0,
+  "reviewer_issues_total": 0
+}
