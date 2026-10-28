@@ -2,7 +2,7 @@
   {
     "paper_id": "2608.20316",
     "version": "v1",
-    "title": "Pandora’s AI Model Routing Box: Efficient Allocation with Costly Value Estimation",
+    "title": "Pandora's AI Model Routing Box: Efficient Allocation with Costly Value Estimation",
     "source_file": "2608.20316v1_Pandora's AI Model Routing Box Efficient Allocation with Costly Value Estimation.pdf",
     "n_pages": 28,
     "body_font_size": 10.9,
@@ -42,7 +42,23 @@
       "D.6 Non-Gaussian signal models"
     ],
     "n_chunks": 39,
-    "parse_status": "ok"
+    "parse_status": "ok",
+    "authors": [
+      "Adam Fisch",
+      "Shubhendu Trivedi",
+      "Fantine Huot",
+      "William W. Cohen",
+      "Michael Kaisers",
+      "Mirella Lapata",
+      "Kate Larson",
+      "Jacob Eisenstein"
+    ],
+    "categories": [
+      "cs.AI"
+    ],
+    "published": "2026-08-20T17:54:37+00:00",
+    "pdf_url": "https://arxiv.org/pdf/2608.20316v2",
+    "abstract": "Heterogeneous AI systems composed of multiple models, architectures, harnesses, or inference-time settings can improve quality and efficiency by routing queries to the specialist who can answer most effectively at the lowest cost. Routing requires estimating each specialist's expected return, but this value estimation has a cost. Cheap estimators (e.g., embedding-based predictors) are fast but noisy, while accurate estimators (e.g., fine-tuned models with access to retrieval results or partial reasoning traces) are expensive. We formalize this tradeoff as an instance of Pandora's Box, the classical problem of optimal search with costly inspection. Under a Gaussian signal model, the resulting policies have closed-form value-of-information expressions that determine, for each specialist and input, whether refining the value estimate is worth its cost. We call the centralized policy Pandora's Router. We extend this to a decentralized setting, Pandora's Bidder, where specialists independently decide whether to invest in self-assessment before accepting an offered price to claim a query. Experiments across three domains---a standard multi-LLM benchmark, retrieval-augmented specialists, and LLMs with variable inference-time reasoning---show that Pandora's Router matches the routing quality of exhaustive estimation, while querying the expensive estimator far less often. In the decentralized setting, value-of-information reasoning improves allocative efficiency when competing estimates are accurate; when competing estimates are noisy, however, it can increase the strategic specialist's utility at the expense of others."
   },
   {
     "paper_id": "2608.20318",
@@ -81,7 +97,27 @@
       "B One task contract in full"
     ],
     "n_chunks": 26,
-    "parse_status": "ok"
+    "parse_status": "ok",
+    "authors": [
+      "Yizhe Chi",
+      "Wenyi Li",
+      "Deyao Hong",
+      "Xiaoqiu Wang",
+      "Mingju Gao",
+      "Kaisen Yang",
+      "Bingxiang He",
+      "Youjie Zheng",
+      "Calvin Xiao",
+      "Qinhuai Na"
+    ],
+    "categories": [
+      "cs.AI",
+      "cs.CL",
+      "cs.LG"
+    ],
+    "published": "2026-08-20T17:56:59+00:00",
+    "pdf_url": "https://arxiv.org/pdf/2608.20318v1",
+    "abstract": "Recursive self-improvement (RSI) asks whether an AI system can improve the process that produces AI systems, so that the next system inherits the improvement. That process is the training algorithm: a better objective or update rule improves the compute\\mbox{-}capability exchange rate for every subsequent run, including the one that produces the next agent. Whether RSI is feasible therefore turns on whether an agent can design training algorithms. No benchmark isolates that ability: existing suites are won by collecting data or by tuning hyperparameters, and none tells a change to how a run is executed apart from a change to how the model learns. We present AI4AI\\mbox{-}Bench, 10 frozen research repositories spanning 10 training algorithm families. In each task, an agent has 4 hours on one B300 to rewrite the training algorithm; its code is then rerun from scratch for up to 12 hours and scored by a fixed evaluator hidden from the agent, against the repository's original algorithm under the same procedure. Because the 10 metrics are incommensurable, every task is mapped onto one scale on which $0$ is an uninformative model, $0.1$ is the algorithm the repository ships, and $1.0$ is the task optimum. Across 29 configurations of 6 systems on all 10 tasks the mean score is $0.166$, and the best system reaches $0.250$: even the strongest closes under a fifth of the distance between the algorithm that was already there and the optimum. The submissions show where that distance went: most never change how the model learns at all, and the minority that do average $0.226$ against $0.126$ for the rest. More reasoning effort mostly buys the willingness to go there, taking that minority from $8\\%$ of submissions to $64\\%$ and the mean score from $0.094$ to $0.196$. We release the task suite, the evaluators and every scored submission, so that the measurement can be repeated as these systems change."
   },
   {
     "paper_id": "2608.20319",
@@ -130,7 +166,20 @@
       "F Implementation Details and Pipeline Prompt Templates"
     ],
     "n_chunks": 29,
-    "parse_status": "ok"
+    "parse_status": "ok",
+    "authors": [
+      "Yucheng Jiang",
+      "Zora Zhiruo Wang",
+      "Ruishi Chen",
+      "Diyi Yang"
+    ],
+    "categories": [
+      "cs.CL",
+      "cs.AI"
+    ],
+    "published": "2026-08-20T17:57:00+00:00",
+    "pdf_url": "https://arxiv.org/pdf/2608.20319v1",
+    "abstract": "Naturalistic computer-use traces, passively recorded screenshots and mouse or keyboard actions, are a valuable resource for deriving symbolic, auditable, and reusable models of how everyday work is done. Such models matter as computer-use agents enter real work, where agents need to learn how tasks are actually performed, and organizations need to audit and reuse that knowledge. However, inducing such task models is challenging, as activity is observed only as low-level events and real-world work is multi-threaded with interleaved goals. Existing methods assume a given task or a single workflow, and produce step-level summaries rather than structured task models. We introduce Task Model Induction (TMI), which (i) discovers the latent tasks in an unconstrained trace, disentangling concurrent activity, and (ii) for each latent task, induces a task model pairing a hierarchical objective model of recursive goal decomposition with a procedure model of the control flow that organized the execution. Intrinsically, on controlled human and agent trajectories, TMI recovers interleaved tasks with 0.974 agreement against ground-truth groupings and reconstructs 74.9% of the observed execution steps, far more than the strongest workflow induction baseline. Extrinsically, skills derived from TMI's task models improve held-out task accuracy by 30.0% over the strongest baseline."
   },
   {
     "paper_id": "2608.20320",
@@ -140,7 +189,7 @@
     "n_pages": 25,
     "body_font_size": 10.9,
     "dropped_lines": {
-      "small_font(figure/table/footnote)": 130,
+      "small_font(figure/table/footnote)": 129,
       "running_header_footer": 24
     },
     "n_headings_detected": 27,
@@ -177,7 +226,21 @@
       "7 Conclusions"
     ],
     "n_chunks": 27,
-    "parse_status": "ok"
+    "parse_status": "ok",
+    "authors": [
+      "Narges Ahmadi",
+      "Yubo Jiao",
+      "Jônatas Augusto Manzolli",
+      "Jiangbo Yu",
+      "Luis Miranda-Moreno"
+    ],
+    "categories": [
+      "cs.AI",
+      "cs.CL"
+    ],
+    "published": "2026-08-20T17:57:42+00:00",
+    "pdf_url": "https://arxiv.org/pdf/2608.20320v1",
+    "abstract": "Travel behavior research increasingly combines digital data collection with predictive modeling, yet these stages are often developed and evaluated separately. This study proposes a three-agent workflow integrating conversational data collection, structured data processing, and behavioral prediction. A chatbot-administered, image-augmented stated-preference survey collected mode choices from student commuters across five predefined weather scenarios, yielding 454 respondent-scenario observations. Weather-related associations were analyzed using a multinomial logit model, while logistic regression and random forest provided machine-learning benchmarks. Nine locally deployed large language models (LLMs), ranging from 2 to 35 billion parameters, were evaluated across four zero-shot prompt-and-context conditions and extended through persona, few-shot, and vision-based configurations. Random forest achieved 69.6% five-class accuracy, while the best text-only zero-shot LLM reached 69.9% without task-specific fitting. Habitual travel information produced the most consistent gains, Expert framing generally outperformed Role-Play, and persona information was most useful when habitual travel information was unavailable. Few-shot prompting improved prediction for several models, with gains stabilizing after a small number of examples. Using the same weather images shown to respondents, the best vision-based configuration reached 71.5% five-class accuracy, indicating that visual context may provide additional predictive information for selected models. Overall, the study shows how conversational surveys, structured data processing, conventional behavioral modeling, machine learning, and multimodal LLM prediction can be coordinated within an auditable multi-agent workflow."
   },
   {
     "paper_id": "2608.20331",
@@ -210,6 +273,22 @@
       "5 Conclusion"
     ],
     "n_chunks": 15,
-    "parse_status": "ok"
+    "parse_status": "ok",
+    "authors": [
+      "Shiao Xie",
+      "Siyu Chen",
+      "Jianwei Lv",
+      "Bo Yuan",
+      "Yujin Wang",
+      "Xiandong Li"
+    ],
+    "categories": [
+      "cs.CL",
+      "cs.AI",
+      "cs.CV"
+    ],
+    "published": "2026-08-20T17:59:46+00:00",
+    "pdf_url": "https://arxiv.org/pdf/2608.20331v1",
+    "abstract": "Personalized interpretation of medical reports has emerged as an increasingly important need among patients. Addressing this need requires both evidence-grounded medical factuality and context-dependent patient communication, yet existing medical vision-language tasks do not adequately capture these dual requirements. To bridge this gap, we introduce Patient-oriented Medical Report Interpretation (PMRI), a novel open-ended multimodal generation task that requires models to explain medical reports in accurate and accessible language based on a user's query and dialogue history. These two objectives differ fundamentally in their verifiability, yet remain tightly coupled, making them difficult to optimize jointly under conventional supervised fine-tuning and holistic reinforcement learning paradigms. To address this challenge, we propose G-CARL, a grounded, checklist-aligned reinforcement learning framework that combines multi-source retrieval for atomic claim verification with context-aware, instance-specific weighted checklists for response coverage, providing structured supervision for factuality, user-demand satisfaction, and expression quality without constraining response diversity. We further construct MMedReport, a real-world PMRI benchmark, along with a clinician-designed three-dimensional evaluation protocol. Extensive experiments demonstrate that G-CARL consistently outperforms existing post-training baselines in overall quality, claim-level precision, and checklist recall. Pairwise preference evaluation by clinicians further confirms that G-CARL produces interpretations that are more accurate and better aligned with patient needs."
   }
 ]

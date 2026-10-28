@@ -210,8 +210,32 @@ def run_pipeline(question: str, k: int, use_hyde: bool, where: dict | None):
 def _pages_label(hit: dict) -> str:
     start, end = hit.get("page_start"), hit.get("page_end")
     if not start:
-        return "—"
+        return ""
     return f"p.{start}" + (f"–{end}" if end and end != start else "")
+
+
+_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
+
+def _format_published(published: str | None) -> str:
+    """'2026-08-20' -> 'Aug 2026'. Falls back to the raw value if it doesn't parse."""
+    if not published:
+        return ""
+    parts = str(published).split("-")
+    try:
+        return f"{_MONTHS[int(parts[1]) - 1]} {parts[0]}"
+    except (IndexError, ValueError):
+        return str(published)
+
+
+def _format_authors(authors: str | None) -> str:
+    """Semicolon-joined author string -> 'First Author et al.' when there's more than one."""
+    if not authors:
+        return ""
+    names = [a.strip() for a in str(authors).split(";") if a.strip()]
+    if not names:
+        return ""
+    return names[0] + (" et al." if len(names) > 1 else "")
 
 
 def render_review(result: dict):
@@ -254,20 +278,26 @@ def render_review(result: dict):
 
 
 def render_sources(hits: list[dict]):
-    st.caption("Numbers match the [n] citations in the answer. Distance is cosine distance — lower = more similar.")
+    st.caption("Numbers match the [n] citations above. Distance is cosine distance — lower = more similar.")
     for i, hit in enumerate(hits, 1):
+        dist = float(hit.get("score", hit.get("distance", 0.0)) or 0.0)
+        color = "green" if dist < 0.4 else "orange" if dist < 0.5 else "red"
+        title = hit.get("title") or "Untitled"
         with st.container(border=True):
-            top = st.columns([0.8, 0.2])
-            top[0].markdown(f"**[{i}] {hit.get('title') or 'Untitled'}**")
-            top[1].metric("Distance", f"{hit.get('score', hit.get('distance', 0)):.4f}")
-            authors = hit.get("authors") or "—"
-            st.caption(f"👤 {authors}")
-            meta_cols = st.columns(3)
-            meta_cols[0].markdown(f"**Published**\n\n{hit.get('published') or '—'}")
-            meta_cols[1].markdown(f"**Section**\n\n{hit.get('section_path') or hit.get('section_label') or '—'}")
-            meta_cols[2].markdown(f"**Pages**\n\n{_pages_label(hit)}")
+            # Title + compact distance badge on one line.
+            st.markdown(f"**[{i}] {title}**  :{color}-badge[distance {dist:.3f}]")
+            # Authors · published · section · pages · PDF — all on one line.
+            section = hit.get("section_path") or hit.get("section_label") or ""
+            parts = [p for p in (
+                _format_authors(hit.get("authors")),
+                _format_published(hit.get("published")),
+                section,
+                _pages_label(hit),
+            ) if p]
+            line = " · ".join(parts) or "—"
             if hit.get("pdf_url"):
-                st.markdown(f"[📄 Open PDF]({hit['pdf_url']})")
+                line += f" · [📄 PDF]({hit['pdf_url']})"
+            st.caption(line)
             with st.expander("Show excerpt text"):
                 st.write(hit.get("text") or "")
 
