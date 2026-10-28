@@ -1,6 +1,7 @@
 # Secrets
 .env
 local.settings.json
+.streamlit/secrets.toml
 
 # Local vector DB data
 chroma_db/

@@ -92,6 +92,36 @@ Or run the notebook:
 jupyter notebook
 ```
 
+### Running the demo (Streamlit)
+
+An interactive web UI that runs the full RAG pipeline — **retrieve → generate → reviewer agent** — with cited answers, a human-review check, and source cards.
+
+**Local run:**
+
+```bash
+pip install -r requirements.txt          # installs streamlit too
+# Put your key in .env:  GEMINI_API_KEY=your-key-here
+streamlit run streamlit_app.py
+```
+
+On first boot the app automatically builds the Chroma index from `chunks/` if it's
+empty (downloads the embedding model, ~1–2 min). Retrieval works without a Gemini
+key; answer generation and the reviewer agent need `GEMINI_API_KEY`.
+
+The app has three tabs: **Ask** (question → cited answer → reviewer check → sources),
+**Fetch papers** (pull new arXiv papers via `pipeline.py` and re-ingest), and
+**Evaluation** (metrics and sample rows from `eval/results/`).
+
+**Streamlit Community Cloud:**
+
+1. Push the repo and point Community Cloud at it.
+2. Set the **main file** to `streamlit_app.py`.
+3. Under **Settings → Secrets**, add your key:
+   ```toml
+   GEMINI_API_KEY = "your-key-here"
+   ```
+4. The **first boot is slow** — it installs PyTorch (CPU) and downloads the
+   embedding model, then builds the index. Subsequent loads are fast.
 
 ---
 

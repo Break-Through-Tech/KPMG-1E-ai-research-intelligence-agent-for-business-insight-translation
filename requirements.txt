@@ -9,3 +9,4 @@ numpy
 google-genai
 arxiv
 requests
+streamlit
