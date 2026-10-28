@@ -20,8 +20,13 @@ COLLECTION_NAME = os.getenv("COLLECTION_NAME", "kpmg_papers")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
 
-PINECONE_API_KEY = os.getenv("PINECONE_API_KEY", "")
-PINECONE_INDEX = os.getenv("PINECONE_INDEX", "")
+# Cloud resources: Azure OpenAI embeddings, Pinecone vector DB, and Blob Storage for PDFs.
+AZURE_OPENAI_ENDPOINT = os.getenv("AZURE_OPENAI_ENDPOINT", "")
+AZURE_OPENAI_KEY = os.getenv("AZURE_OPENAI_KEY", "")
 
-AZURE_STORAGE_CONNECTION_STRING = os.getenv("AZURE_STORAGE_CONNECTION_STRING", "")
+PINECONE_API_KEY = os.getenv("PINECONE_API_KEY", "")
+PINECONE_INDEX = os.getenv("PINECONE_INDEX", "arxiv-papers")
+
+# Same storage account the function app deploys to; PDFs live in their own container there.
+STORAGE_CONNECTION_STRING = os.getenv("DEPLOYMENT_STORAGE_CONNECTION_STRING", "")
 PDF_CONTAINER = os.getenv("PDF_CONTAINER", "pdfs")
