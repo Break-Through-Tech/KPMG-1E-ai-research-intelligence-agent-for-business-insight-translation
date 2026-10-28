@@ -1,5 +1,6 @@
 # Secrets
 .env
+local.settings.json
 
 # Local vector DB data
 chroma_db/

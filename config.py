@@ -19,3 +19,9 @@ COLLECTION_NAME = os.getenv("COLLECTION_NAME", "kpmg_papers")
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
+
+PINECONE_API_KEY = os.getenv("PINECONE_API_KEY", "")
+PINECONE_INDEX = os.getenv("PINECONE_INDEX", "")
+
+AZURE_STORAGE_CONNECTION_STRING = os.getenv("AZURE_STORAGE_CONNECTION_STRING", "")
+PDF_CONTAINER = os.getenv("PDF_CONTAINER", "pdfs")
