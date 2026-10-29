@@ -99,3 +99,16 @@ def query(req: func.HttpRequest) -> func.HttpResponse:
     timings["review"] = round(time.perf_counter() - start, 2)
 
     return _json(response)
+
+
+@app.timer_trigger(schedule="0 0 6 * * *", arg_name="timer", run_on_startup=False, use_monitor=True)
+def daily_ingest(timer: func.TimerRequest) -> None:
+    """Pull new arXiv papers into Pinecone and Blob Storage every day at 06:00 UTC."""
+    from ingestion import run_ingestion
+
+    try:
+        summary = run_ingestion()
+    except NotImplementedError:
+        logging.warning("Ingestion steps aren't implemented yet; skipping this run.")
+        return
+    logging.info("ingestion summary: %s", json.dumps(summary))
