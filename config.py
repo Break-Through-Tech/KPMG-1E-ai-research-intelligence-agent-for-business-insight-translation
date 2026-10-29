@@ -30,3 +30,7 @@ PINECONE_INDEX = os.getenv("PINECONE_INDEX", "arxiv-papers")
 # Same storage account the function app deploys to; PDFs live in their own container there.
 STORAGE_CONNECTION_STRING = os.getenv("DEPLOYMENT_STORAGE_CONNECTION_STRING", "")
 PDF_CONTAINER = os.getenv("PDF_CONTAINER", "pdfs")
+
+# Backend API (the function app) that the Streamlit frontend calls.
+BACKEND_API_URL = os.getenv("BACKEND_API_URL", "").rstrip("/")
+BACKEND_API_KEY = os.getenv("BACKEND_API_KEY", "")

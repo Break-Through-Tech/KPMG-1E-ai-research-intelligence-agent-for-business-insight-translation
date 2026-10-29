@@ -34,7 +34,7 @@ def _from_secrets(name: str):
     return None
 
 
-for _key in ("GEMINI_API_KEY", "GEMINI_MODEL"):
+for _key in ("GEMINI_API_KEY", "GEMINI_MODEL", "BACKEND_API_URL", "BACKEND_API_KEY"):
     _val = _from_secrets(_key)
     if _val:
         os.environ[_key] = _val
