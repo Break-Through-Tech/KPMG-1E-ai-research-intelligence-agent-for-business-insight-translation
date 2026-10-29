@@ -33,4 +33,6 @@ PDF_CONTAINER = os.getenv("PDF_CONTAINER", "pdfs")
 
 # Backend API (the function app) that the Streamlit frontend calls.
 BACKEND_API_URL = os.getenv("BACKEND_API_URL", "").rstrip("/")
+if BACKEND_API_URL and "://" not in BACKEND_API_URL:  # the portal's "Default domain" has no scheme
+    BACKEND_API_URL = "https://" + BACKEND_API_URL
 BACKEND_API_KEY = os.getenv("BACKEND_API_KEY", "")
