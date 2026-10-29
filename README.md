@@ -16,6 +16,7 @@
 | Alessandra Uribe | @Alessandra005| Break Through Tech Fellow                                                |
 | Yvonne Liang     | @yvonnelxxxx  | Break Through Tech Fellow                                                |
 | Saad Amin   | @saadcoder28  | Break Through Tech Fellow                                                |
+| Sadia Doha   | @sadiamohddoha  | Break Through Tech Fellow                                                |
 ---
 
 ## 🎯 **Project Highlights**
