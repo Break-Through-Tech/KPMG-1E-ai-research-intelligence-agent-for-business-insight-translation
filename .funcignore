@@ -8,6 +8,8 @@ __pycache__/
 .env
 .env.example
 local.settings.json
+.streamlit/
+streamlit_app.py
 .ipynb_checkpoints/
 .DS_Store
 
