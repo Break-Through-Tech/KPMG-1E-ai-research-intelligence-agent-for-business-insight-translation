@@ -376,7 +376,11 @@ def load_jsonl_file(path: Path, limit: int | None = None):
 st.title("🔬 AI Research Intelligence Agent")
 st.caption("Turn the latest AI research papers into cited, business-ready insights.")
 
-summary = ensure_index()
+#summary = ensure_index()
+# Temporary startup test---------------------------
+st.success("Streamlit started successfully!")
+
+st.stop()
 
 # --- Sidebar ---
 with st.sidebar:
