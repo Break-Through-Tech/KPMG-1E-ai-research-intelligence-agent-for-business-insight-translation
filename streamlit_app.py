@@ -135,7 +135,7 @@ def safe_review(hits: list[dict], answer: str):
 
 # --- First-boot: build the index if it's empty ------------------------------
 def ensure_index():
-    warm_embedding_model()
+    #warm_embedding_model()---------
     summary = index_summary()
     if summary["count"] > 0:
         return summary
