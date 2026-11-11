@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 import time
 from datetime import date
 
@@ -107,7 +108,8 @@ def daily_ingest(timer: func.TimerRequest) -> None:
     from ingestion import run_ingestion
 
     try:
-        summary = run_ingestion()
+        # ARCHIVE_ONLY=1 stores PDFs under staging/ and skips chunking/indexing (see ingestion.py).
+        summary = run_ingestion(archive_only=os.getenv("ARCHIVE_ONLY") == "1")
     except NotImplementedError:
         logging.warning("Ingestion steps aren't implemented yet; skipping this run.")
         return
