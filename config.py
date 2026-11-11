@@ -16,6 +16,7 @@ QUERY_INSTRUCTION = os.getenv(
 # Relative paths resolve against the repo root, so scripts and notebooks share one DB.
 CHROMA_DB_PATH = str(ROOT / os.getenv("CHROMA_DB_PATH", "chroma_db"))
 COLLECTION_NAME = os.getenv("COLLECTION_NAME", "kpmg_papers")
+VECTOR_BACKEND = os.getenv("VECTOR_BACKEND", "chroma").lower()
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")

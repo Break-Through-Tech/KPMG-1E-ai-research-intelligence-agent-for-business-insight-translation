@@ -4,6 +4,7 @@ import numpy as np
 
 import config
 from embed import embed_texts
+from store import check_embedding_model, get_collection
 
 HYDE_PROMPT = """Write a short passage (about 120 words) from an AI research paper that \
 directly answers the question below. Use the technical terminology a researcher would use \
@@ -33,6 +34,33 @@ def _pinecone_index():
 
         _index = Pinecone(api_key=config.PINECONE_API_KEY).Index(config.PINECONE_INDEX)
     return _index
+
+
+def _chroma_search(query_embedding: list[float], k: int, where: dict | None) -> list[dict]:
+    collection = get_collection()
+    check_embedding_model(collection)
+    result = collection.query(
+        query_embeddings=[query_embedding],
+        n_results=k,
+        where=where,
+        include=["documents", "metadatas", "distances"],
+    )
+    hits = []
+    for chunk_id, document, metadata, distance in zip(
+        result["ids"][0],
+        result["documents"][0],
+        result["metadatas"][0],
+        result["distances"][0],
+    ):
+        hit = {
+            "chunk_id": chunk_id,
+            **(metadata or {}),
+            "text": document,
+            "distance": round(float(distance), 4),
+            "score": round(float(distance), 4),
+        }
+        hits.append(hit)
+    return hits
 
 
 def hypothetical_document(question: str, retries: int = 3) -> str:
@@ -117,6 +145,11 @@ def search(
     reviewer_agent.py, and the notebook's generation code don't all need to be patched
     at once. Pick one name as a team and drop the other once everything's migrated.
     """
+    if config.VECTOR_BACKEND == "chroma":
+        return _chroma_search(query_embedding, k, where)
+    if config.VECTOR_BACKEND != "pinecone":
+        raise ValueError("VECTOR_BACKEND must be 'chroma' or 'pinecone'.")
+
     result = _pinecone_index().query(
         vector=query_embedding,
         top_k=k,
