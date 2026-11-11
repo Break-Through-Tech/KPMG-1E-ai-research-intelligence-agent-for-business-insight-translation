@@ -3,7 +3,6 @@ import time
 import numpy as np
 
 import config
-import store
 from embed import embed_texts
 
 HYDE_PROMPT = """Write a short passage (about 120 words) from an AI research paper that \
@@ -13,6 +12,7 @@ directly answers the question below. Use the technical terminology a researcher 
 Question: {question}"""
 
 _client = None
+_index = None
 _hyde_cache: dict[str, str] = {}
 _hyde_disabled_reason = ""
 
@@ -24,6 +24,15 @@ def _gemini():
 
         _client = genai.Client(api_key=config.GEMINI_API_KEY)
     return _client
+
+
+def _pinecone_index():
+    global _index
+    if _index is None:
+        from pinecone import Pinecone
+
+        _index = Pinecone(api_key=config.PINECONE_API_KEY).Index(config.PINECONE_INDEX)
+    return _index
 
 
 def hypothetical_document(question: str, retries: int = 3) -> str:
@@ -101,34 +110,27 @@ def search(
     Retrieval layer: return the k chunks closest to an already-embedded query,
     best first.
 
+    `where` is a metadata filter such as {"paper_id": {"$in": [...]}}.
+
     Each result includes both "distance" and "score" set to the same cosine-distance
     value (lower = more similar) — kept as two keys temporarily so eval_retrieval.py,
     reviewer_agent.py, and the notebook's generation code don't all need to be patched
     at once. Pick one name as a team and drop the other once everything's migrated.
     """
-    collection = store.get_collection()
-    store.check_embedding_model(collection)
-
-    query_kwargs = {
-        "query_embeddings": [query_embedding],
-        "n_results": k,
-    }
-
-    if where:
-        query_kwargs["where"] = where
-
-    result = collection.query(**query_kwargs)
-
+    result = _pinecone_index().query(
+        vector=query_embedding,
+        top_k=k,
+        filter=where,
+        include_metadata=True,
+        namespace=config.PINECONE_NAMESPACE,
+    )
     hits = []
-    for chunk_id, doc, meta, dist in zip(
-        result["ids"][0],
-        result["documents"][0],
-        result["metadatas"][0],
-        result["distances"][0],
-    ):
-        dist_val = round(float(dist), 4)
+    for match in result.matches:
+        meta = match.metadata or {}
+        # Pinecone returns cosine similarity; downstream code expects distance (lower = closer).
+        dist_val = round(1 - float(match.score), 4)
         hits.append({
-            "chunk_id": chunk_id,
+            "chunk_id": match.id,
             "paper_id": meta.get("paper_id"),
             "title": meta.get("title"),
             "authors": meta.get("authors"),
@@ -136,9 +138,10 @@ def search(
             "pdf_url": meta.get("pdf_url"),
             "section_label": meta.get("section_label"),
             "section_path": meta.get("section_path"),
-            "page_start": meta.get("page_start"),
-            "page_end": meta.get("page_end"),
-            "text": doc,
+            # Pinecone stores every number as a float.
+            "page_start": int(meta.get("page_start", 0)),
+            "page_end": int(meta.get("page_end", 0)),
+            "text": meta.get("text", ""),
             "distance": dist_val,
             "score": dist_val,
         })
