@@ -26,6 +26,8 @@ AZURE_OPENAI_KEY = os.getenv("AZURE_OPENAI_KEY", "")
 
 PINECONE_API_KEY = os.getenv("PINECONE_API_KEY", "")
 PINECONE_INDEX = os.getenv("PINECONE_INDEX", "arxiv-papers")
+# Empty = the live data. Set e.g. "dev-yourname" to test against your own namespace.
+PINECONE_NAMESPACE = os.getenv("PINECONE_NAMESPACE", "")
 
 # Same storage account the function app deploys to; PDFs live in their own container there.
 STORAGE_CONNECTION_STRING = os.getenv("DEPLOYMENT_STORAGE_CONNECTION_STRING", "")
