@@ -13,6 +13,8 @@ import time
 import subprocess
 from pathlib import Path
 
+import requests
+
 import streamlit as st
 
 st.set_page_config(
@@ -43,9 +45,13 @@ for _key in ("GEMINI_API_KEY", "GEMINI_MODEL", "BACKEND_API_URL", "BACKEND_API_K
 # demo can reset their session-level "disabled" flags without touching behavior
 # for the CLI / Azure / eval scripts that never import this file.
 import config  # noqa: E402
-import store  # noqa: E402
-import embed  # noqa: E402
+if not os.environ.get("BACKEND_API_URL"):
+    # Local Chroma + bge helpers (chromadb / sentence-transformers). With a backend configured
+    # the app only needs the light cloud dependencies in requirements.txt, so skip them.
+    import store  # noqa: E402
+    import embed  # noqa: E402
 import generate  # noqa: E402
+import front_office_agent  # noqa: E402
 import reviewer_agent  # noqa: E402
 import retrieve as retrieve_mod  # noqa: E402
 
@@ -133,6 +139,15 @@ def safe_review(hits: list[dict], answer: str):
         return None, friendly_gemini_error(exc)
 
 
+def safe_create_insights(hits: list[dict], answer: str):
+    if not config.GEMINI_API_KEY:
+        return None, "No GEMINI_API_KEY is set. Add it to enable front-office insights."
+    try:
+        return front_office_agent.create_insights(answer, hits).to_dict(), None
+    except Exception as exc:
+        return None, friendly_gemini_error(exc)
+
+
 # --- First-boot: build the index if it's empty ------------------------------
 def ensure_index():
     warm_embedding_model()
@@ -150,8 +165,61 @@ def ensure_index():
     return summary
 
 
+# --- Remote backend (Azure Function) ----------------------------------------
+BACKEND_URL = os.environ.get("BACKEND_API_URL", "").strip().rstrip("/")
+if BACKEND_URL and not BACKEND_URL.startswith(("http://", "https://")):
+    BACKEND_URL = "https://" + BACKEND_URL  # tolerate a bare domain copied from the Azure portal
+BACKEND_KEY = os.environ.get("BACKEND_API_KEY", "").strip()
+USE_BACKEND = bool(BACKEND_URL)
+
+
+def run_pipeline_remote(question: str, k: int, use_hyde: bool):
+    """POST to the Azure Function's /api/query and store the result for render_result()."""
+    result: dict = {"question": question, "k": k, "use_hyde": use_hyde}
+    with st.status("Querying the Azure backend…", expanded=True) as status:
+        t = time.perf_counter()
+        try:
+            resp = requests.post(
+                f"{BACKEND_URL}/api/query",
+                json={"question": question, "k": k, "use_hyde": use_hyde, "mode": "answer"},
+                headers={"x-functions-key": BACKEND_KEY} if BACKEND_KEY else {},
+                timeout=120,
+            )
+        except requests.RequestException as exc:
+            status.update(label="Backend unreachable", state="error")
+            st.error(f"Could not reach the backend: {exc}")
+            return
+        elapsed = time.perf_counter() - t
+
+        if resp.status_code != 200:
+            try:
+                detail = resp.json().get("error", resp.text)
+            except ValueError:
+                detail = resp.text
+            status.update(label=f"Backend error ({resp.status_code})", state="error")
+            if resp.status_code in (401, 403):
+                detail = "Backend rejected the key. Check BACKEND_API_KEY."
+            st.error(f"{detail[:300]}")
+            return
+
+        data = resp.json()
+        hits = data.get("sources") or []
+        timings = {name.capitalize(): float(secs) for name, secs in (data.get("timings") or {}).items()}
+        timings["Network"] = max(elapsed - sum(timings.values()), 0.0)
+        result.update(
+            hits=hits,
+            answer=data.get("answer") or "",
+            review=data.get("review"),
+            gen_error=None if data.get("answer") else "The backend returned no answer.",
+            review_error=None,
+            timings=timings,
+        )
+        status.update(label=f"Done in {elapsed:.2f}s", state="complete")
+    st.session_state.last_result = result
+
+
 # --- Pipeline runner (Ask tab) ----------------------------------------------
-def run_pipeline(question: str, k: int, use_hyde: bool, where: dict | None):
+def run_pipeline(question: str, k: int, use_hyde: bool, where: dict | None, create_front_office: bool):
     # Clear any sticky per-session "disabled" flags so one earlier transient
     # error doesn't silently mute generation/HyDE for the rest of the demo.
     generate._gen_disabled_reason = ""
@@ -189,7 +257,16 @@ def run_pipeline(question: str, k: int, use_hyde: bool, where: dict | None):
         result["answer"] = answer
         result["gen_error"] = gen_error
 
-        # 3. Review (only if we have an answer to review)
+        insight, insight_error = None, None
+        if create_front_office and answer:
+            st.write("📊 Creating front-office insights…")
+            t = time.perf_counter()
+            insight, insight_error = safe_create_insights(hits, answer)
+            timings["Insights"] = time.perf_counter() - t
+        result["insight"] = insight
+        result["insight_error"] = insight_error
+
+        # 4. Review (only if we have an answer to review)
         review, review_error = None, None
         if answer:
             st.write("🔬 Running the reviewer agent…")
@@ -302,6 +379,31 @@ def render_sources(hits: list[dict]):
                 st.write(hit.get("text") or "")
 
 
+def render_insight(result: dict):
+    insight = result.get("insight")
+    if not insight:
+        if result.get("insight_error"):
+            st.warning(f"Front-office insights unavailable: {result['insight_error']}")
+        return
+
+    st.subheader("Front-office insights")
+    st.markdown(f"**{insight['headline']}**")
+    st.info(insight["bottom_line"])
+    cards = st.columns(min(len(insight["insights"]), 3))
+    for card, item in zip(cards, insight["insights"]):
+        with card.container(border=True):
+            st.markdown(f"**{item['title']}**")
+            st.write(item["value"])
+            if item.get("action"):
+                st.caption(f"Next step: {item['action']}")
+    dashboard = insight.get("dashboard") or {}
+    rows = dashboard.get("rows") or []
+    if rows:
+        st.markdown(f"**{dashboard.get('title') or 'Research dashboard'}**")
+        st.caption(dashboard.get("metric") or "")
+        st.bar_chart(rows, x="label", y="value")
+
+
 def render_result():
     result = st.session_state.get("last_result")
     if not result:
@@ -320,6 +422,7 @@ def render_result():
         st.markdown(result["answer"])
     else:
         st.warning(result.get("gen_error") or "No answer was generated.")
+    render_insight(result)
 
     st.subheader("Human review check")
     render_review(result)
@@ -376,7 +479,8 @@ def load_jsonl_file(path: Path, limit: int | None = None):
 st.title("🔬 AI Research Intelligence Agent")
 st.caption("Turn the latest AI research papers into cited, business-ready insights.")
 
-summary = ensure_index()
+# With a backend configured, retrieval/generation happen in Azure; skip the local index.
+summary = {"count": 0, "papers": []} if USE_BACKEND else ensure_index()
 
 # --- Sidebar ---
 with st.sidebar:
@@ -387,21 +491,32 @@ with st.sidebar:
         value=False,
         help="Generates a hypothetical answer passage and averages it into the query embedding. Needs the Gemini key.",
     )
+    create_front_office = st.toggle(
+        "Create front-office insights",
+        value=True,
+        help="Adds an executive summary, insight cards, and a dashboard when supported.",
+    )
 
-    paper_titles = [p["title"] for p in summary["papers"]]
-    selected_titles = st.multiselect("Filter by paper (optional)", paper_titles)
-    where_filter = {"title": {"$in": selected_titles}} if selected_titles else None
+    if USE_BACKEND:
+        where_filter = None
+    else:
+        paper_titles = [p["title"] for p in summary["papers"]]
+        selected_titles = st.multiselect("Filter by paper (optional)", paper_titles)
+        where_filter = {"title": {"$in": selected_titles}} if selected_titles else None
 
     st.divider()
     st.subheader("Example questions")
     st.session_state.setdefault("question", "")
     for i, q in enumerate(EXAMPLE_QUESTIONS):
-        if st.button(q, key=f"ex_{i}", use_container_width=True):
+        if st.button(q, key=f"ex_{i}", width="stretch"):
             st.session_state.question = q
 
     st.divider()
-    st.caption(f"📚 Index: **{summary['count']}** chunks · **{len(summary['papers'])}** papers")
-    if not config.GEMINI_API_KEY:
+    if USE_BACKEND:
+        st.caption(f"☁️ Backend: `{BACKEND_URL}`")
+    else:
+        st.caption(f"📚 Index: **{summary['count']}** chunks · **{len(summary['papers'])}** papers")
+    if not USE_BACKEND and not config.GEMINI_API_KEY:
         st.warning("No GEMINI_API_KEY — retrieval works, but answers/review are disabled.")
 
 
@@ -417,7 +532,10 @@ with tab_ask:
     )
     ask = st.button("Ask", type="primary")
     if ask and question.strip():
-        run_pipeline(question.strip(), k, use_hyde, where_filter)
+        if USE_BACKEND:
+            run_pipeline_remote(question.strip(), k, use_hyde)
+        else:
+            run_pipeline(question.strip(), k, use_hyde, where_filter)
     elif ask:
         st.warning("Type a question first (or click an example in the sidebar).")
     st.divider()
@@ -482,7 +600,7 @@ with tab_eval:
             cols[3].metric("Sec Recall@k", f"{ret_metrics.get('section Recall@k', 0):.2f}")
             st.dataframe(
                 [{"metric": m, "value": v} for m, v in ret_metrics.items()],
-                use_container_width=True,
+                width="stretch",
                 hide_index=True,
             )
 
@@ -495,7 +613,7 @@ with tab_eval:
             cols[3].metric("Business quality /5", gen_metrics.get("mean_business_quality_1_5", "—"))
             st.dataframe(
                 [{"metric": m, "value": v} for m, v in gen_metrics.items()],
-                use_container_width=True,
+                width="stretch",
                 hide_index=True,
             )
 
@@ -504,7 +622,7 @@ with tab_eval:
         gen_rows = load_jsonl_file(RESULTS_DIR / "generation_results.jsonl", limit=5)
         if ret_rows:
             st.markdown("**Retrieval results (first 5)**")
-            st.dataframe(ret_rows, use_container_width=True, hide_index=True)
+            st.dataframe(ret_rows, width="stretch", hide_index=True)
         if gen_rows:
             st.markdown("**Generation results (first 5)**")
-            st.dataframe(gen_rows, use_container_width=True, hide_index=True)
+            st.dataframe(gen_rows, width="stretch", hide_index=True)

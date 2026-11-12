@@ -1,15 +1,12 @@
---extra-index-url https://download.pytorch.org/whl/cpu
+# Deployed to the Azure Function App and used by Streamlit Community Cloud.
+# Local-only tooling (Chroma, the bge model, the Streamlit server) is in requirements-local.txt.
 azure-functions
-pdfplumber
-
-chromadb
-sentence-transformers
+azure-storage-blob
 openai
 pinecone
-azure-storage-blob
+pdfplumber
 python-dotenv
 numpy
 google-genai
 arxiv
 requests
-streamlit
