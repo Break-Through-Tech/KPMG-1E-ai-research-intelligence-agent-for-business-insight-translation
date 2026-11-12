@@ -35,6 +35,33 @@ def _pinecone_index():
     return _index
 
 
+def _chroma_search(query_embedding: list[float], k: int, where: dict | None) -> list[dict]:
+    collection = get_collection()
+    check_embedding_model(collection)
+    result = collection.query(
+        query_embeddings=[query_embedding],
+        n_results=k,
+        where=where,
+        include=["documents", "metadatas", "distances"],
+    )
+    hits = []
+    for chunk_id, document, metadata, distance in zip(
+        result["ids"][0],
+        result["documents"][0],
+        result["metadatas"][0],
+        result["distances"][0],
+    ):
+        hit = {
+            "chunk_id": chunk_id,
+            **(metadata or {}),
+            "text": document,
+            "distance": round(float(distance), 4),
+            "score": round(float(distance), 4),
+        }
+        hits.append(hit)
+    return hits
+
+
 def hypothetical_document(question: str, retries: int = 3) -> str:
     """HyDE: an LLM-written passage that looks like the chunks we want to find.
     Returns "" when no API key is set or the call fails, so retrieval still works."""
@@ -119,6 +146,11 @@ def search(
     reviewer_agent.py, and the notebook's generation code don't all need to be patched
     at once. Pick one name as a team and drop the other once everything's migrated.
     """
+    if config.VECTOR_BACKEND == "chroma":
+        return _chroma_search(query_embedding, k, where)
+    if config.VECTOR_BACKEND != "pinecone":
+        raise ValueError("VECTOR_BACKEND must be 'chroma' or 'pinecone'.")
+
     result = _pinecone_index().query(
         vector=query_embedding,
         top_k=k,

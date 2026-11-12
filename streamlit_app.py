@@ -51,6 +51,7 @@ if not os.environ.get("BACKEND_API_URL"):
     import store  # noqa: E402
     import embed  # noqa: E402
 import generate  # noqa: E402
+import front_office_agent  # noqa: E402
 import reviewer_agent  # noqa: E402
 import retrieve as retrieve_mod  # noqa: E402
 
@@ -138,6 +139,15 @@ def safe_review(hits: list[dict], answer: str):
         return None, friendly_gemini_error(exc)
 
 
+def safe_create_insights(hits: list[dict], answer: str):
+    if not config.GEMINI_API_KEY:
+        return None, "No GEMINI_API_KEY is set. Add it to enable front-office insights."
+    try:
+        return front_office_agent.create_insights(answer, hits).to_dict(), None
+    except Exception as exc:
+        return None, friendly_gemini_error(exc)
+
+
 # --- First-boot: build the index if it's empty ------------------------------
 def ensure_index():
     warm_embedding_model()
@@ -209,7 +219,7 @@ def run_pipeline_remote(question: str, k: int, use_hyde: bool):
 
 
 # --- Pipeline runner (Ask tab) ----------------------------------------------
-def run_pipeline(question: str, k: int, use_hyde: bool, where: dict | None):
+def run_pipeline(question: str, k: int, use_hyde: bool, where: dict | None, create_front_office: bool):
     # Clear any sticky per-session "disabled" flags so one earlier transient
     # error doesn't silently mute generation/HyDE for the rest of the demo.
     generate._gen_disabled_reason = ""
@@ -247,7 +257,16 @@ def run_pipeline(question: str, k: int, use_hyde: bool, where: dict | None):
         result["answer"] = answer
         result["gen_error"] = gen_error
 
-        # 3. Review (only if we have an answer to review)
+        insight, insight_error = None, None
+        if create_front_office and answer:
+            st.write("📊 Creating front-office insights…")
+            t = time.perf_counter()
+            insight, insight_error = safe_create_insights(hits, answer)
+            timings["Insights"] = time.perf_counter() - t
+        result["insight"] = insight
+        result["insight_error"] = insight_error
+
+        # 4. Review (only if we have an answer to review)
         review, review_error = None, None
         if answer:
             st.write("🔬 Running the reviewer agent…")
@@ -360,6 +379,31 @@ def render_sources(hits: list[dict]):
                 st.write(hit.get("text") or "")
 
 
+def render_insight(result: dict):
+    insight = result.get("insight")
+    if not insight:
+        if result.get("insight_error"):
+            st.warning(f"Front-office insights unavailable: {result['insight_error']}")
+        return
+
+    st.subheader("Front-office insights")
+    st.markdown(f"**{insight['headline']}**")
+    st.info(insight["bottom_line"])
+    cards = st.columns(min(len(insight["insights"]), 3))
+    for card, item in zip(cards, insight["insights"]):
+        with card.container(border=True):
+            st.markdown(f"**{item['title']}**")
+            st.write(item["value"])
+            if item.get("action"):
+                st.caption(f"Next step: {item['action']}")
+    dashboard = insight.get("dashboard") or {}
+    rows = dashboard.get("rows") or []
+    if rows:
+        st.markdown(f"**{dashboard.get('title') or 'Research dashboard'}**")
+        st.caption(dashboard.get("metric") or "")
+        st.bar_chart(rows, x="label", y="value")
+
+
 def render_result():
     result = st.session_state.get("last_result")
     if not result:
@@ -378,6 +422,7 @@ def render_result():
         st.markdown(result["answer"])
     else:
         st.warning(result.get("gen_error") or "No answer was generated.")
+    render_insight(result)
 
     st.subheader("Human review check")
     render_review(result)
@@ -446,6 +491,11 @@ with st.sidebar:
         value=False,
         help="Generates a hypothetical answer passage and averages it into the query embedding. Needs the Gemini key.",
     )
+    create_front_office = st.toggle(
+        "Create front-office insights",
+        value=True,
+        help="Adds an executive summary, insight cards, and a dashboard when supported.",
+    )
 
     if USE_BACKEND:
         where_filter = None
@@ -458,7 +508,7 @@ with st.sidebar:
     st.subheader("Example questions")
     st.session_state.setdefault("question", "")
     for i, q in enumerate(EXAMPLE_QUESTIONS):
-        if st.button(q, key=f"ex_{i}", use_container_width=True):
+        if st.button(q, key=f"ex_{i}", width="stretch"):
             st.session_state.question = q
 
     st.divider()
@@ -550,7 +600,7 @@ with tab_eval:
             cols[3].metric("Sec Recall@k", f"{ret_metrics.get('section Recall@k', 0):.2f}")
             st.dataframe(
                 [{"metric": m, "value": v} for m, v in ret_metrics.items()],
-                use_container_width=True,
+                width="stretch",
                 hide_index=True,
             )
 
@@ -563,7 +613,7 @@ with tab_eval:
             cols[3].metric("Business quality /5", gen_metrics.get("mean_business_quality_1_5", "—"))
             st.dataframe(
                 [{"metric": m, "value": v} for m, v in gen_metrics.items()],
-                use_container_width=True,
+                width="stretch",
                 hide_index=True,
             )
 
@@ -572,7 +622,7 @@ with tab_eval:
         gen_rows = load_jsonl_file(RESULTS_DIR / "generation_results.jsonl", limit=5)
         if ret_rows:
             st.markdown("**Retrieval results (first 5)**")
-            st.dataframe(ret_rows, use_container_width=True, hide_index=True)
+            st.dataframe(ret_rows, width="stretch", hide_index=True)
         if gen_rows:
             st.markdown("**Generation results (first 5)**")
-            st.dataframe(gen_rows, use_container_width=True, hide_index=True)
+            st.dataframe(gen_rows, width="stretch", hide_index=True)
