@@ -3,8 +3,7 @@ import time
 import numpy as np
 
 import config
-from embed import embed_texts
-from store import check_embedding_model, get_collection
+from azure_embed import embed_texts
 
 HYDE_PROMPT = """Write a short passage (about 120 words) from an AI research paper that \
 directly answers the question below. Use the technical terminology a researcher would use \
@@ -118,7 +117,9 @@ def hypothetical_document(question: str, retries: int = 3) -> str:
 
 def embed_query(question: str, use_hyde: bool = False) -> list[float]:
     """Average the question and HyDE passage embeddings, then re-normalize for cosine search."""
-    texts = [config.QUERY_INSTRUCTION + question]
+    # No query prefix: the bge instruction doesn't apply to text-embedding-3-small, and the
+    # indexed chunks (see ingestion.index_chunks) are embedded as plain text.
+    texts = [question]
     if use_hyde and (doc := hypothetical_document(question)):
         texts.append(doc)
     vec = np.mean(embed_texts(texts), axis=0)

@@ -1,0 +1,8 @@
+# Everything for working on a laptop: the cloud dependencies plus the local Chroma pipeline.
+#   pip install -r requirements-local.txt
+-r requirements.txt
+--extra-index-url https://download.pytorch.org/whl/cpu
+
+chromadb
+sentence-transformers
+streamlit
