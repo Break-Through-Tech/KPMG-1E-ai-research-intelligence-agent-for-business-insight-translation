@@ -21,7 +21,6 @@ st.set_page_config(
     layout="wide",
 )
 
-
 # --- API key resolution -----------------------------------------------------
 # Prefer Streamlit Secrets (Community Cloud) over .env. Must happen BEFORE we
 # import config, which reads GEMINI_API_KEY at import time.
