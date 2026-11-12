@@ -167,7 +167,7 @@ def ensure_index():
 
 
 # --- Remote backend (Azure Function) ----------------------------------------
-BACKEND_URL = os.environ.get("BACKEND_API_URL", "").strip().rstrip("/").removesuffix("/api")
+BACKEND_URL = os.environ.get("BACKEND_API_URL", "").strip().rstrip("/")
 if BACKEND_URL and not BACKEND_URL.startswith(("http://", "https://")):
     BACKEND_URL = "https://" + BACKEND_URL  # tolerate a bare domain copied from the Azure portal
 BACKEND_KEY = os.environ.get("BACKEND_API_KEY", "").strip()
