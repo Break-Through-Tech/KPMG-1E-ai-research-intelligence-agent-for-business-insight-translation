@@ -1,11 +1,9 @@
 """Embeddings from the Azure OpenAI text-embedding-3-small deployment (1536 dimensions).
 
 Used by the cloud ingestion job; the Pinecone index is built from these vectors, so queries
-must be embedded the same way. The standard OpenAI client talks to Azure's "/openai/v1" API
-directly (the model name is the deployment name).
+must be embedded the same way. The endpoint in config is the "/openai/v1" URL, which the
+standard OpenAI client talks to directly (the model name is the deployment name).
 """
-from urllib.parse import urlparse
-
 import config
 
 BATCH_SIZE = 64
@@ -20,9 +18,7 @@ def _openai():
 
         if not (config.AZURE_OPENAI_ENDPOINT and config.AZURE_OPENAI_KEY):
             raise RuntimeError("AZURE_OPENAI_ENDPOINT and AZURE_OPENAI_KEY must be set.")
-        # Accept both the portal's bare resource URL and the full ".../openai/v1" form.
-        host = urlparse(config.AZURE_OPENAI_ENDPOINT).netloc
-        _client = OpenAI(base_url=f"https://{host}/openai/v1/", api_key=config.AZURE_OPENAI_KEY)
+        _client = OpenAI(base_url=config.AZURE_OPENAI_ENDPOINT, api_key=config.AZURE_OPENAI_KEY)
     return _client
 
 
