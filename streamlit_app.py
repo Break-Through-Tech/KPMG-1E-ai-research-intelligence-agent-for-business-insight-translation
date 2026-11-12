@@ -88,6 +88,7 @@ def index_summary():
     if count:
         data = col.get(include=["metadatas"])
         for meta in data["metadatas"]:
+            meta = meta or {}
             pid = meta.get("paper_id") or "?"
             entry = papers.setdefault(
                 pid, {"paper_id": pid, "title": meta.get("title") or pid, "n_chunks": 0}
@@ -166,14 +167,14 @@ def ensure_index():
 
 
 # --- Remote backend (Azure Function) ----------------------------------------
-BACKEND_URL = os.environ.get("BACKEND_API_URL", "").strip().rstrip("/")
+BACKEND_URL = os.environ.get("BACKEND_API_URL", "").strip().rstrip("/").removesuffix("/api")
 if BACKEND_URL and not BACKEND_URL.startswith(("http://", "https://")):
     BACKEND_URL = "https://" + BACKEND_URL  # tolerate a bare domain copied from the Azure portal
 BACKEND_KEY = os.environ.get("BACKEND_API_KEY", "").strip()
 USE_BACKEND = bool(BACKEND_URL)
 
 
-def run_pipeline_remote(question: str, k: int, use_hyde: bool):
+def run_pipeline_remote(question: str, k: int, use_hyde: bool, filters: dict, create_front_office: bool):
     """POST to the Azure Function's /api/query and store the result for render_result()."""
     result: dict = {"question": question, "k": k, "use_hyde": use_hyde}
     with st.status("Querying the Azure backend…", expanded=True) as status:
@@ -181,7 +182,7 @@ def run_pipeline_remote(question: str, k: int, use_hyde: bool):
         try:
             resp = requests.post(
                 f"{BACKEND_URL}/api/query",
-                json={"question": question, "k": k, "use_hyde": use_hyde, "mode": "answer"},
+                json={"question": question, "k": k, "use_hyde": use_hyde, "mode": "answer", "filters": filters},
                 headers={"x-functions-key": BACKEND_KEY} if BACKEND_KEY else {},
                 timeout=120,
             )
@@ -204,17 +205,29 @@ def run_pipeline_remote(question: str, k: int, use_hyde: bool):
 
         data = resp.json()
         hits = data.get("sources") or []
+        answer = data.get("answer") or ""
         timings = {name.capitalize(): float(secs) for name, secs in (data.get("timings") or {}).items()}
         timings["Network"] = max(elapsed - sum(timings.values()), 0.0)
+
+        # The backend's insight mode uses a different schema, so build the cards here from its answer.
+        insight, insight_error = None, None
+        if create_front_office and answer and hits:
+            st.write("📊 Creating front-office insights…")
+            t = time.perf_counter()
+            insight, insight_error = safe_create_insights(hits, answer)
+            timings["Insights"] = time.perf_counter() - t
+
         result.update(
             hits=hits,
-            answer=data.get("answer") or "",
+            answer=answer,
             review=data.get("review"),
-            gen_error=None if data.get("answer") else "The backend returned no answer.",
+            gen_error=None if answer else "The backend returned no answer.",
             review_error=None,
+            insight=insight,
+            insight_error=insight_error,
             timings=timings,
         )
-        status.update(label=f"Done in {elapsed:.2f}s", state="complete")
+        status.update(label=f"Done in {sum(timings.values()):.2f}s", state="complete")
     st.session_state.last_result = result
 
 
@@ -499,6 +512,12 @@ with st.sidebar:
 
     if USE_BACKEND:
         where_filter = None
+        paper_ids = st.text_input(
+            "Filter by arXiv ID (optional)",
+            placeholder="2611.14492, 2611.14493",
+            help="Comma-separated arXiv IDs without the version suffix.",
+        )
+        backend_filters = {"paper_ids": [p.strip() for p in paper_ids.split(",") if p.strip()]}
     else:
         paper_titles = [p["title"] for p in summary["papers"]]
         selected_titles = st.multiselect("Filter by paper (optional)", paper_titles)
@@ -533,7 +552,7 @@ with tab_ask:
     ask = st.button("Ask", type="primary")
     if ask and question.strip():
         if USE_BACKEND:
-            run_pipeline_remote(question.strip(), k, use_hyde)
+            run_pipeline_remote(question.strip(), k, use_hyde, backend_filters, create_front_office)
         else:
             run_pipeline(question.strip(), k, use_hyde, where_filter)
     elif ask:
