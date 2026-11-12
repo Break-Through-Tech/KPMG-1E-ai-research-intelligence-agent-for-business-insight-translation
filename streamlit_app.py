@@ -13,6 +13,8 @@ import time
 import subprocess
 from pathlib import Path
 
+import requests
+
 import streamlit as st
 
 st.set_page_config(
@@ -43,8 +45,11 @@ for _key in ("GEMINI_API_KEY", "GEMINI_MODEL", "BACKEND_API_URL", "BACKEND_API_K
 # demo can reset their session-level "disabled" flags without touching behavior
 # for the CLI / Azure / eval scripts that never import this file.
 import config  # noqa: E402
-import store  # noqa: E402
-import embed  # noqa: E402
+if not os.environ.get("BACKEND_API_URL"):
+    # Local Chroma + bge helpers (chromadb / sentence-transformers). With a backend configured
+    # the app only needs the light cloud dependencies in requirements.txt, so skip them.
+    import store  # noqa: E402
+    import embed  # noqa: E402
 import generate  # noqa: E402
 import reviewer_agent  # noqa: E402
 import retrieve as retrieve_mod  # noqa: E402
@@ -148,6 +153,59 @@ def ensure_index():
         st.code((proc.stderr or proc.stdout or "")[-2000:])
         st.stop()
     return summary
+
+
+# --- Remote backend (Azure Function) ----------------------------------------
+BACKEND_URL = os.environ.get("BACKEND_API_URL", "").strip().rstrip("/")
+if BACKEND_URL and not BACKEND_URL.startswith(("http://", "https://")):
+    BACKEND_URL = "https://" + BACKEND_URL  # tolerate a bare domain copied from the Azure portal
+BACKEND_KEY = os.environ.get("BACKEND_API_KEY", "").strip()
+USE_BACKEND = bool(BACKEND_URL)
+
+
+def run_pipeline_remote(question: str, k: int, use_hyde: bool):
+    """POST to the Azure Function's /api/query and store the result for render_result()."""
+    result: dict = {"question": question, "k": k, "use_hyde": use_hyde}
+    with st.status("Querying the Azure backend…", expanded=True) as status:
+        t = time.perf_counter()
+        try:
+            resp = requests.post(
+                f"{BACKEND_URL}/api/query",
+                json={"question": question, "k": k, "use_hyde": use_hyde, "mode": "answer"},
+                headers={"x-functions-key": BACKEND_KEY} if BACKEND_KEY else {},
+                timeout=120,
+            )
+        except requests.RequestException as exc:
+            status.update(label="Backend unreachable", state="error")
+            st.error(f"Could not reach the backend: {exc}")
+            return
+        elapsed = time.perf_counter() - t
+
+        if resp.status_code != 200:
+            try:
+                detail = resp.json().get("error", resp.text)
+            except ValueError:
+                detail = resp.text
+            status.update(label=f"Backend error ({resp.status_code})", state="error")
+            if resp.status_code in (401, 403):
+                detail = "Backend rejected the key. Check BACKEND_API_KEY."
+            st.error(f"{detail[:300]}")
+            return
+
+        data = resp.json()
+        hits = data.get("sources") or []
+        timings = {name.capitalize(): float(secs) for name, secs in (data.get("timings") or {}).items()}
+        timings["Network"] = max(elapsed - sum(timings.values()), 0.0)
+        result.update(
+            hits=hits,
+            answer=data.get("answer") or "",
+            review=data.get("review"),
+            gen_error=None if data.get("answer") else "The backend returned no answer.",
+            review_error=None,
+            timings=timings,
+        )
+        status.update(label=f"Done in {elapsed:.2f}s", state="complete")
+    st.session_state.last_result = result
 
 
 # --- Pipeline runner (Ask tab) ----------------------------------------------
@@ -376,7 +434,8 @@ def load_jsonl_file(path: Path, limit: int | None = None):
 st.title("🔬 AI Research Intelligence Agent")
 st.caption("Turn the latest AI research papers into cited, business-ready insights.")
 
-summary = ensure_index()
+# With a backend configured, retrieval/generation happen in Azure; skip the local index.
+summary = {"count": 0, "papers": []} if USE_BACKEND else ensure_index()
 
 # --- Sidebar ---
 with st.sidebar:
@@ -388,9 +447,12 @@ with st.sidebar:
         help="Generates a hypothetical answer passage and averages it into the query embedding. Needs the Gemini key.",
     )
 
-    paper_titles = [p["title"] for p in summary["papers"]]
-    selected_titles = st.multiselect("Filter by paper (optional)", paper_titles)
-    where_filter = {"title": {"$in": selected_titles}} if selected_titles else None
+    if USE_BACKEND:
+        where_filter = None
+    else:
+        paper_titles = [p["title"] for p in summary["papers"]]
+        selected_titles = st.multiselect("Filter by paper (optional)", paper_titles)
+        where_filter = {"title": {"$in": selected_titles}} if selected_titles else None
 
     st.divider()
     st.subheader("Example questions")
@@ -400,8 +462,11 @@ with st.sidebar:
             st.session_state.question = q
 
     st.divider()
-    st.caption(f"📚 Index: **{summary['count']}** chunks · **{len(summary['papers'])}** papers")
-    if not config.GEMINI_API_KEY:
+    if USE_BACKEND:
+        st.caption(f"☁️ Backend: `{BACKEND_URL}`")
+    else:
+        st.caption(f"📚 Index: **{summary['count']}** chunks · **{len(summary['papers'])}** papers")
+    if not USE_BACKEND and not config.GEMINI_API_KEY:
         st.warning("No GEMINI_API_KEY — retrieval works, but answers/review are disabled.")
 
 
@@ -417,7 +482,10 @@ with tab_ask:
     )
     ask = st.button("Ask", type="primary")
     if ask and question.strip():
-        run_pipeline(question.strip(), k, use_hyde, where_filter)
+        if USE_BACKEND:
+            run_pipeline_remote(question.strip(), k, use_hyde)
+        else:
+            run_pipeline(question.strip(), k, use_hyde, where_filter)
     elif ask:
         st.warning("Type a question first (or click an example in the sidebar).")
     st.divider()

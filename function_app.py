@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import time
+from dataclasses import asdict
 from datetime import date
 
 import azure.functions as func
@@ -38,6 +39,25 @@ def _where(filters: dict) -> dict | None:
     return clauses[0] if len(clauses) == 1 else {"$and": clauses}
 
 
+def _insight(question: str, k: int) -> func.HttpResponse:
+    """Business-insight mode: hand the question to the agent workflow in agents.py.
+
+    agents.run_pipeline(question, k, mode="insight") must return a dataclass with question,
+    status, answer, review, insight, sources, timings and trace (see InsightResult). It does its
+    own retrieval, so filters and HyDE don't apply to this mode yet.
+    """
+    try:
+        from agents import run_pipeline
+    except ImportError:
+        return _error(501, "Insight mode isn't available yet.")
+    try:
+        result = run_pipeline(question, k=k, mode="insight")
+    except Exception:
+        logging.exception("insight workflow failed")
+        return _error(503, "The insight workflow failed. Try again later.")
+    return _json(asdict(result))
+
+
 @app.route(route="query", methods=["POST"])
 def query(req: func.HttpRequest) -> func.HttpResponse:
     try:
@@ -64,6 +84,9 @@ def query(req: func.HttpRequest) -> func.HttpResponse:
         where = _where(filters)
     except (TypeError, ValueError):
         return _error(400, "'filters.published_after' must be a YYYY-MM-DD date and 'paper_ids' a list.")
+
+    if mode == "insight":
+        return _insight(question, k)
 
     # Imported per request so a broken model or vector store can't stop /api/health from loading.
     from generate import generate_answer
@@ -105,7 +128,7 @@ def query(req: func.HttpRequest) -> func.HttpResponse:
 @app.timer_trigger(schedule="0 0 6 * * *", arg_name="timer", run_on_startup=False, use_monitor=True)
 def daily_ingest(timer: func.TimerRequest) -> None:
     """Pull new arXiv papers into Pinecone and Blob Storage every day at 06:00 UTC."""
-    from ingestion import run_ingestion
+    from ingestion import check_run, run_ingestion
 
     try:
         # ARCHIVE_ONLY=1 stores PDFs under staging/ and skips chunking/indexing (see ingestion.py).
@@ -113,4 +136,4 @@ def daily_ingest(timer: func.TimerRequest) -> None:
     except NotImplementedError:
         logging.warning("Ingestion steps aren't implemented yet; skipping this run.")
         return
-    logging.info("ingestion summary: %s", json.dumps(summary))
+    check_run(summary)  # logs the summary; raises on failed papers or an unexpectedly empty day
