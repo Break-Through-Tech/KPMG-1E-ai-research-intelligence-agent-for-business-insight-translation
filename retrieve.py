@@ -36,6 +36,9 @@ def _pinecone_index():
 
 
 def _chroma_search(query_embedding: list[float], k: int, where: dict | None) -> list[dict]:
+    # Lazy: chromadb is a local-only dependency (requirements-local.txt), not installed on Azure.
+    from store import check_embedding_model, get_collection
+
     collection = get_collection()
     check_embedding_model(collection)
     result = collection.query(
