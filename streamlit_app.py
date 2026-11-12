@@ -42,6 +42,7 @@ for _key in ("GEMINI_API_KEY", "GEMINI_MODEL", "BACKEND_API_URL", "BACKEND_API_K
 # Project modules (import after env is set). We import whole modules so the
 # demo can reset their session-level "disabled" flags without touching behavior
 # for the CLI / Azure / eval scripts that never import this file.
+
 import config  # noqa: E402
 import store  # noqa: E402
 import embed  # noqa: E402
@@ -82,9 +83,14 @@ def index_summary():
     if count:
         data = col.get(include=["metadatas"])
         for meta in data["metadatas"]:
+            meta = meta or {}
             pid = meta.get("paper_id") or "?"
             entry = papers.setdefault(
-                pid, {"paper_id": pid, "title": meta.get("title") or pid, "n_chunks": 0}
+                pid, {
+                    "paper_id": pid,
+                    "title": meta.get("title") or pid,
+                    "n_chunks": 0,
+                },
             )
             entry["n_chunks"] += 1
     return {"count": count, "papers": sorted(papers.values(), key=lambda p: p["title"])}
@@ -133,32 +139,156 @@ def safe_review(hits: list[dict], answer: str):
         return None, friendly_gemini_error(exc)
 
 
-# --- First-boot: build the index if it's empty ------------------------------
+# --- First-boot: build the index if it's empty----------------------------------------------------------------------------------------
 def ensure_index():
-    #warm_embedding_model()---------
-    summary = index_summary()
-    if summary["count"] > 0:
-        return summary
-    with st.spinner("First run: building the search index from chunks/ … this can take 1–2 minutes."):
-        proc = subprocess.run([PY, str(ROOT / "ingest.py")], capture_output=True, text=True, cwd=str(ROOT))
-    refresh_index_caches()
-    summary = index_summary()
-    if summary["count"] == 0:
-        st.error("Could not build the index automatically.")
-        st.code((proc.stderr or proc.stdout or "")[-2000:])
+    try:
+        summary = index_summary()
+        if summary["count"] > 0:
+            col = get_collection()
+            col.query(
+                query_embeddings=[[0.0] * 768],
+                n_results=1,
+            )
+            return summary
+    except Exception:
+        refresh_index_caches()
+
+    import json
+    from embed import embed_texts
+
+    path = ROOT / "chunks" / "chunks.jsonl"
+    records = [
+        json.loads(line)
+        for line in path.read_text().splitlines()
+        if line.strip()
+    ]
+
+    if not records:
+        st.error("No chunks found.")
         st.stop()
-    return summary
+
+    with st.spinner("Building search index..."):
+        collection = store.get_collection()
+
+        batch_size = 16
+        for start in range(0, len(records), batch_size):
+            batch = records[start:start + batch_size]
+            texts = [r["chunk_text"] for r in batch]
+
+            collection.upsert(
+                ids=[str(r["chunk_id"]) for r in batch],
+                documents=texts,
+                embeddings=embed_texts(texts),
+            )
+
+    refresh_index_caches()
+    return index_summary()
+
+
+
+def run_backend_pipeline(question: str, k: int, use_hyde: bool, where: dict | None):
+    import requests
+
+    base_url = os.environ["BACKEND_API_URL"].strip().rstrip("/")
+    if base_url.endswith("/api"):
+        base_url = base_url[:-4]
+
+    api_key = os.environ.get("BACKEND_API_KEY", "").strip()
+
+    headers = {"Content-Type": "application/json"}
+    if api_key:
+        headers["x-functions-key"] = api_key
+
+    payload = {
+        "question": question,
+        "k": k,
+        "use_hyde": use_hyde,
+        "mode": "answer",
+        "filters": {},
+    }
+
+    # The backend filters by paper ID, not paper title.
+    # Do not silently apply the frontend's title filter.
+    if where:
+        st.warning("Paper title filtering is not supported in Azure mode yet.")
+
+    with st.status("Calling Azure backend...", expanded=True) as status:
+        try:
+ 
+            response = requests.post(
+                f"{base_url}/api/query",
+                json=payload,
+                headers=headers,
+                timeout=120,
+            )
+
+            if not response.ok:
+                if response.status_code == 503:
+                    status.update(
+                        label="Azure search unavailable — using local pipeline",
+                        state="complete",
+                    )
+                    return run_local_pipeline(question, k, use_hyde, where)
+
+                response.raise_for_status()
+            data = response.json()
+
+            if not isinstance(data, dict):
+                raise ValueError("Unexpected backend response.")
+
+            if data.get("error"):
+                raise ValueError(str(data["error"]))
+
+            backend_timings = data.get("timings") or {}
+            timings = {
+                label: float(backend_timings[key])
+                for key, label in (
+                    ("retrieve", "Retrieve"),
+                    ("generate", "Generate"),
+                    ("review", "Review"),
+                )
+                if backend_timings.get(key) is not None
+            }
+
+            st.session_state.last_result = {
+                "question": question,
+                "k": k,
+                "use_hyde": use_hyde,
+                "hits": data.get("sources") or [],
+                "answer": data.get("answer") or "",
+                "review": data.get("review"),
+                "gen_error": None,
+                "review_error": None,
+                "timings": timings,
+            }
+
+            status.update(label="Azure backend completed", state="complete")
+
+        except (requests.RequestException, ValueError, TypeError) as exc:
+            status.update(label="Azure backend failed", state="error")
+            st.error(f"Azure backend error: {exc}")
+
 
 
 # --- Pipeline runner (Ask tab) ----------------------------------------------
+
+
 def run_pipeline(question: str, k: int, use_hyde: bool, where: dict | None):
-    # Clear any sticky per-session "disabled" flags so one earlier transient
-    # error doesn't silently mute generation/HyDE for the rest of the demo.
+    if os.environ.get("BACKEND_API_URL", "").strip():
+        return run_backend_pipeline(question, k, use_hyde, where)
+    return run_local_pipeline(question, k, use_hyde, where)
+
+
+def run_local_pipeline(question: str, k: int, use_hyde: bool, where: dict | None):
+
+
+    # Clear any sticky per-session "disabled" flags
     generate._gen_disabled_reason = ""
     retrieve_mod._hyde_disabled_reason = ""
 
     result: dict = {"question": question, "k": k, "use_hyde": use_hyde}
     timings: dict[str, float] = {}
+
 
     with st.status("Running the pipeline…", expanded=True) as status:
         # 1. Retrieve
@@ -376,11 +506,9 @@ def load_jsonl_file(path: Path, limit: int | None = None):
 st.title("🔬 AI Research Intelligence Agent")
 st.caption("Turn the latest AI research papers into cited, business-ready insights.")
 
-#summary = ensure_index()
-# Temporary startup test---------------------------
-st.success("Streamlit started successfully!")
-
-st.stop()
+summary = ensure_index()
+#st.success("Search index initialized successfully!")
+#st.stop()
 
 # --- Sidebar ---
 with st.sidebar:
